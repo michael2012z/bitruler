@@ -18,7 +18,7 @@ fn main() {
     };
 
     match parse_unsigned(&input) {
-        Ok(number) => print_formats(number),
+        Ok(number) => print_output(number),
         Err(error) => {
             eprintln!("Error: {error}");
             process::exit(1);
@@ -72,6 +72,160 @@ fn parse_unsigned(input: &str) -> Result<u64, String> {
     }
 
     u64::from_str_radix(digits, radix).map_err(|_| format!("invalid unsigned number: {input}"))
+}
+
+fn print_output(number: u64) {
+    for line in render_visual(number) {
+        println!("{line}");
+    }
+
+    println!();
+    print_formats(number);
+}
+
+fn render_visual(number: u64) -> Vec<String> {
+    let hex_digits = format!("{number:x}");
+    let bit_width = hex_digits.len() * 4;
+    let bit_digits = format!("{number:0bit_width$b}");
+    let hex_digits = hex_digits.chars().collect::<Vec<_>>();
+
+    let mut lines = Vec::new();
+    lines.push(String::new());
+    lines.extend(render_ruler(&hex_digits));
+    lines.push(String::new());
+    lines.extend(render_hex_digits(&hex_digits));
+    lines.extend(render_bit_area(&bit_digits));
+    lines
+}
+
+fn render_ruler(hex_digits: &[char]) -> Vec<String> {
+    let labels = hex_digits
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            let shift = (hex_digits.len() - index - 1) * 4;
+            format!("{:>4}", format_power_of_two(shift))
+        })
+        .collect::<Vec<_>>();
+    let markers = vec!["  │ ".to_string(); hex_digits.len()];
+
+    vec![
+        format!("  {}", join_visual_tokens(&labels)),
+        format!("  {}", join_visual_tokens(&markers)),
+    ]
+}
+
+fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
+    (0..7)
+        .map(|row| {
+            let tokens = hex_digits
+                .iter()
+                .map(|digit| hex_pattern(*digit)[row].to_string())
+                .collect::<Vec<_>>();
+            format!("  {}", join_visual_tokens(&tokens))
+        })
+        .collect()
+}
+
+fn render_bit_area(bit_digits: &str) -> Vec<String> {
+    let chunks = bit_digits
+        .as_bytes()
+        .chunks(4)
+        .map(|chunk| std::str::from_utf8(chunk).expect("binary digits are valid UTF-8"))
+        .collect::<Vec<_>>();
+    let nibble_count = chunks.len();
+    let top_connectors = vec!["──┬─".to_string(); nibble_count];
+    let vertical_connectors = vec!["  │ ".to_string(); nibble_count];
+    let bit_connectors = vec!["┌┬┼┐".to_string(); nibble_count];
+    let bottom_connectors = vec!["├──┘".to_string(); nibble_count];
+    let bottom_verticals = vec!["│   ".to_string(); nibble_count];
+    let bit_labels = (0..nibble_count)
+        .map(|index| format!("{:<4}", (nibble_count - index) * 4 - 1))
+        .collect::<Vec<_>>();
+
+    vec![
+        format!("  {}", join_visual_tokens(&top_connectors)),
+        format!("  {}", join_visual_tokens(&vertical_connectors)),
+        format!("  {}", join_visual_tokens(&vertical_connectors)),
+        format!("  {}", join_visual_tokens(&bit_connectors)),
+        String::new(),
+        format!("  {}", join_bit_chunks(&chunks)),
+        String::new(),
+        format!("  {}", join_visual_tokens(&bottom_connectors)),
+        format!("  {}", join_visual_tokens(&bottom_verticals)),
+        format!("  {}", join_visual_tokens(&bottom_verticals)),
+        format!("  {}", join_visual_tokens(&bit_labels)),
+    ]
+}
+
+fn join_visual_tokens(tokens: &[String]) -> String {
+    tokens
+        .iter()
+        .enumerate()
+        .fold(String::new(), |mut output, (index, token)| {
+            if index > 0 {
+                if index % 4 == 0 {
+                    output.push_str("   ");
+                } else {
+                    output.push(' ');
+                }
+            }
+            output.push_str(token);
+            output
+        })
+}
+
+fn join_bit_chunks(chunks: &[&str]) -> String {
+    chunks
+        .iter()
+        .enumerate()
+        .fold(String::new(), |mut output, (index, chunk)| {
+            if index > 0 {
+                if index % 4 == 0 {
+                    output.push_str(" _ ");
+                } else {
+                    output.push('_');
+                }
+            }
+            output.push_str(chunk);
+            output
+        })
+}
+
+fn format_power_of_two(shift: usize) -> String {
+    match shift {
+        0 => "1".to_string(),
+        4 => "16".to_string(),
+        8 => "256".to_string(),
+        _ => {
+            let suffixes = ["K", "M", "G", "T", "P", "E"];
+            let suffix_index = shift / 10 - 1;
+            let exponent = shift % 10;
+            format!("{}{}", 1_u16 << exponent, suffixes[suffix_index])
+        }
+    }
+}
+
+fn hex_pattern(digit: char) -> [&'static str; 7] {
+    match digit.to_ascii_lowercase() {
+        '0' => ["████", "█  █", "█  █", "█  █", "█  █", "█  █", "████"],
+        '1' => ["  █ ", " ██ ", "  █ ", "  █ ", "  █ ", "  █ ", " ███"],
+        '2' => ["████", "   █", "   █", "████", "█   ", "█   ", "████"],
+        '3' => ["████", "   █", "   █", "████", "   █", "   █", "████"],
+        '4' => ["█  █", "█  █", "█  █", "████", "   █", "   █", "   █"],
+        '5' => ["████", "█   ", "█   ", "████", "   █", "   █", "████"],
+        '6' => ["████", "█   ", "█   ", "████", "█  █", "█  █", "████"],
+        '7' => ["████", "   █", "   █", "  █ ", " █  ", " █  ", " █  "],
+        '8' => ["████", "█  █", "█  █", "████", "█  █", "█  █", "████"],
+        '9' => ["████", "█  █", "█  █", "████", "   █", "   █", "████"],
+        'a' => ["████", "█  █", "█  █", "████", "█  █", "█  █", "█  █"],
+        'b' => ["███ ", "█  █", "█  █", "███ ", "█  █", "█  █", "███ "],
+        'c' => ["████", "█   ", "█   ", "█   ", "█   ", "█   ", "████"],
+        'd' => ["███ ", "█  █", "█  █", "█  █", "█  █", "█  █", "███ "],
+        'e' => ["████", "█   ", "█   ", "████", "█   ", "█   ", "████"],
+        'f' => ["████", "█   ", "█   ", "████", "█   ", "█   ", "█   "],
+        _ => unreachable!("hex formatter only emits hexadecimal digits"),
+    }
 }
 
 fn print_formats(number: u64) {
@@ -154,5 +308,22 @@ mod tests {
         assert_eq!(format_bin(0x1234), "0b0001_0010_0011_0100");
         assert_eq!(format_bin(1), "0b0001");
         assert_eq!(format_bin(0), "0b0000");
+    }
+
+    #[test]
+    fn renders_visual_layout_for_hex_digits() {
+        let rendered = render_visual(0x1234).join("\n");
+
+        assert!(rendered.contains("  256   16    1"));
+        assert!(rendered.contains("  0001_0010_0011_0100"));
+        assert!(rendered.contains("  15   11   7    3"));
+    }
+
+    #[test]
+    fn formats_power_of_two_labels() {
+        assert_eq!(format_power_of_two(0), "1");
+        assert_eq!(format_power_of_two(8), "256");
+        assert_eq!(format_power_of_two(12), "4K");
+        assert_eq!(format_power_of_two(60), "1E");
     }
 }
