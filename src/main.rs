@@ -34,14 +34,14 @@ fn print_help(program_name: &str) {
     println!(
         "bitruler - visualize, decode, and inspect binary data\n\n\
 Usage:\n  {program_name} <unsigned-number>\n  {program_name} --help / -h\n\n\
-Arguments:\n  <unsigned-number>    Unsigned 64-bit integer to inspect\n\n\
+Arguments:\n  <unsigned-number>    Unsigned 128-bit integer to inspect\n\n\
 Accepted input formats:\n  Hexadecimal          0x1234\n  Decimal              4660\n  Octal                0o11064\n  Binary               0b0001_0010_0011_0100\n\n\
-Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 18446744073709551615 / 0xffff_ffff_ffff_ffff\n\n\
+Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 340282366920938463463374607431768211455\n  - Maximum hexadecimal value is 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff\n\n\
 Examples:\n  {program_name} 4660\n  {program_name} 0x1234\n  {program_name} 0b0001_0010_0011_0100"
     );
 }
 
-fn parse_unsigned(input: &str) -> Result<u64, String> {
+fn parse_unsigned(input: &str) -> Result<u128, String> {
     let normalized = input.replace('_', "");
 
     if normalized.is_empty() {
@@ -71,10 +71,10 @@ fn parse_unsigned(input: &str) -> Result<u64, String> {
         return Err("number has no digits".to_string());
     }
 
-    u64::from_str_radix(digits, radix).map_err(|_| format!("invalid unsigned number: {input}"))
+    u128::from_str_radix(digits, radix).map_err(|_| format!("invalid unsigned number: {input}"))
 }
 
-fn print_output(number: u64) {
+fn print_output(number: u128) {
     for line in render_visual(number) {
         println!("{line}");
     }
@@ -83,7 +83,7 @@ fn print_output(number: u64) {
     print_formats(number);
 }
 
-fn render_visual(number: u64) -> Vec<String> {
+fn render_visual(number: u128) -> Vec<String> {
     let hex_digits = format!("{number:x}");
     let bit_width = hex_digits.len() * 4;
     let bit_digits = format!("{number:0bit_width$b}");
@@ -252,10 +252,13 @@ fn format_power_of_two(shift: usize) -> String {
         4 => "16".to_string(),
         8 => "256".to_string(),
         _ => {
-            let suffixes = ["K", "M", "G", "T", "P", "E"];
+            let suffixes = ["K", "M", "G", "T", "P", "E", "Z", "Y"];
             let suffix_index = shift / 10 - 1;
             let exponent = shift % 10;
-            format!("{}{}", 1_u16 << exponent, suffixes[suffix_index])
+            suffixes
+                .get(suffix_index)
+                .map(|suffix| format!("{}{}", 1_u16 << exponent, suffix))
+                .unwrap_or_else(|| format!("2^{shift}"))
         }
     }
 }
@@ -282,14 +285,14 @@ fn hex_pattern(digit: char) -> [&'static str; 7] {
     }
 }
 
-fn print_formats(number: u64) {
+fn print_formats(number: u128) {
     println!("HEX: {}", format_hex(number));
     println!("DEC: {number}");
     println!("OCT: 0o{number:o}");
     println!("BIN: {}", format_bin(number));
 }
 
-fn format_hex(number: u64) -> String {
+fn format_hex(number: u128) -> String {
     let digits = format!("{number:x}");
     let mut formatted = String::from("0x");
 
@@ -303,7 +306,7 @@ fn format_hex(number: u64) -> String {
     formatted
 }
 
-fn format_bin(number: u64) -> String {
+fn format_bin(number: u128) -> String {
     let digits = format!("{number:b}");
     let padding = (4 - digits.len() % 4) % 4;
     let digits = format!("{}{}", "0".repeat(padding), digits);
@@ -348,6 +351,15 @@ mod tests {
             parse_unsigned("0b0001001000110100000100100011010000010010001101000001001000110100"),
             Ok(0x1234_1234_1234_1234)
         );
+    }
+
+    #[test]
+    fn parses_u128_boundaries() {
+        assert_eq!(
+            parse_unsigned("0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"),
+            Ok(u128::MAX)
+        );
+        assert!(parse_unsigned("0x1_0000_0000_0000_0000_0000_0000_0000_0000").is_err());
     }
 
     #[test]
@@ -397,5 +409,20 @@ mod tests {
         assert_eq!(format_power_of_two(8), "256");
         assert_eq!(format_power_of_two(12), "4K");
         assert_eq!(format_power_of_two(60), "1E");
+        assert_eq!(format_power_of_two(64), "16E");
+        assert_eq!(format_power_of_two(124), "2^124");
+    }
+
+    #[test]
+    fn renders_128_bit_values() {
+        let rendered = render_visual(u128::MAX).join("\n");
+
+        assert!(rendered.contains("2^124"));
+        assert!(rendered.contains("16E"));
+        assert!(rendered.contains("│    │    │    ┌─ 1"));
+        assert_eq!(
+            format_hex(u128::MAX),
+            "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
+        );
     }
 }
