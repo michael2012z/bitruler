@@ -1,4 +1,21 @@
-use std::{env, process};
+use std::{env, io, process};
+
+#[cfg(unix)]
+const TIOCGWINSZ: u64 = 0x5413;
+
+#[cfg(unix)]
+#[repr(C)]
+struct WinSize {
+    rows: u16,
+    columns: u16,
+    x_pixels: u16,
+    y_pixels: u16,
+}
+
+#[cfg(unix)]
+unsafe extern "C" {
+    fn ioctl(file_descriptor: i32, request: u64, ...) -> i32;
+}
 
 fn main() {
     let mut args = env::args();
@@ -75,12 +92,76 @@ fn parse_unsigned(input: &str) -> Result<u128, String> {
 }
 
 fn print_output(number: u128) {
-    for line in render_visual(number) {
+    let lines = render_visual(number);
+    warn_if_output_exceeds_terminal_width(&lines);
+
+    for line in lines {
         println!("{line}");
     }
 
     println!();
     print_formats(number);
+}
+
+fn warn_if_output_exceeds_terminal_width(lines: &[String]) {
+    let Some(terminal_width) = terminal_width() else {
+        return;
+    };
+    let output_width = lines
+        .iter()
+        .map(|line| display_width(line))
+        .max()
+        .unwrap_or(0);
+
+    if output_width > terminal_width {
+        eprintln!(
+            "Warning: output is {output_width} columns wide, but terminal is {terminal_width} columns wide."
+        );
+    }
+}
+
+fn terminal_width() -> Option<usize> {
+    terminal_width_from_ioctl().or_else(terminal_width_from_env)
+}
+
+#[cfg(unix)]
+fn terminal_width_from_ioctl() -> Option<usize> {
+    terminal_width_from_file(&io::stdout())
+        .or_else(|| terminal_width_from_file(&io::stderr()))
+        .or_else(|| terminal_width_from_file(&io::stdin()))
+}
+
+#[cfg(unix)]
+fn terminal_width_from_file<T: std::os::fd::AsRawFd>(file: &T) -> Option<usize> {
+    let mut size = WinSize {
+        rows: 0,
+        columns: 0,
+        x_pixels: 0,
+        y_pixels: 0,
+    };
+    let result = unsafe { ioctl(file.as_raw_fd(), TIOCGWINSZ, &mut size) };
+
+    if result == 0 && size.columns > 0 {
+        Some(usize::from(size.columns))
+    } else {
+        None
+    }
+}
+
+#[cfg(not(unix))]
+fn terminal_width_from_ioctl() -> Option<usize> {
+    None
+}
+
+fn terminal_width_from_env() -> Option<usize> {
+    env::var("COLUMNS")
+        .ok()
+        .and_then(|columns| columns.parse::<usize>().ok())
+        .filter(|columns| *columns > 0)
+}
+
+fn display_width(line: &str) -> usize {
+    line.chars().count()
 }
 
 fn render_visual(number: u128) -> Vec<String> {
@@ -374,6 +455,12 @@ mod tests {
         assert_eq!(format_bin(0x1234), "0b0001_0010_0011_0100");
         assert_eq!(format_bin(1), "0b0001");
         assert_eq!(format_bin(0), "0b0000");
+    }
+
+    #[test]
+    fn display_width_counts_rendered_columns() {
+        assert_eq!(display_width("abc"), 3);
+        assert_eq!(display_width("┌─ 16"), 5);
     }
 
     #[test]
