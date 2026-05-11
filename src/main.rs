@@ -104,15 +104,49 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
         .enumerate()
         .map(|(index, _)| {
             let shift = (hex_digits.len() - index - 1) * 4;
-            format!("{:>4}", format_power_of_two(shift))
+            format_power_of_two(shift)
         })
         .collect::<Vec<_>>();
-    let markers = vec!["  │ ".to_string(); hex_digits.len()];
+    let width = visual_width(hex_digits.len());
+    let split_index = labels.len().div_ceil(2);
+    let row_count = split_index.max(labels.len() - split_index);
+    let mut lines = vec![vec![' '; width]; row_count];
 
-    vec![
-        format!("  {}", join_visual_tokens(&labels)),
-        format!("  {}", join_visual_tokens(&markers)),
-    ]
+    for (index, label) in labels.iter().enumerate() {
+        let row = ruler_row(index, split_index);
+        let hinge_column = ruler_hinge_column(index);
+        let is_right_half = index >= split_index;
+        let connector = if is_right_half {
+            format!("┌─ {label}")
+        } else if hinge_column + 1 < label.chars().count() + 3 {
+            format!("{label} ┐")
+        } else {
+            format!("{label} ─┐")
+        };
+        let connector_column = if is_right_half {
+            hinge_column
+        } else {
+            hinge_column.saturating_sub(connector.chars().count() - 1)
+        };
+        write_at(&mut lines[row], connector_column, &connector);
+
+        for vertical_row in (row + 1)..lines.len() {
+            write_at(&mut lines[vertical_row], hinge_column, "│");
+        }
+    }
+
+    lines
+        .into_iter()
+        .map(|line| line.into_iter().collect())
+        .collect()
+}
+
+fn ruler_row(index: usize, split_index: usize) -> usize {
+    if index < split_index {
+        split_index - index - 1
+    } else {
+        index - split_index
+    }
 }
 
 fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
@@ -173,6 +207,26 @@ fn join_visual_tokens(tokens: &[String]) -> String {
             output.push_str(token);
             output
         })
+}
+
+fn visual_width(token_count: usize) -> usize {
+    if token_count == 0 {
+        0
+    } else {
+        ruler_hinge_column(token_count - 1) + 10
+    }
+}
+
+fn ruler_hinge_column(index: usize) -> usize {
+    index * 5 + (index / 4) * 2 + 3
+}
+
+fn write_at(line: &mut [char], column: usize, text: &str) {
+    for (offset, character) in text.chars().enumerate() {
+        if let Some(slot) = line.get_mut(column + offset) {
+            *slot = character;
+        }
+    }
 }
 
 fn join_bit_chunks(chunks: &[&str]) -> String {
@@ -314,9 +368,27 @@ mod tests {
     fn renders_visual_layout_for_hex_digits() {
         let rendered = render_visual(0x1234).join("\n");
 
-        assert!(rendered.contains("  256   16    1"));
+        assert!(rendered.contains("256 ─┐    ┌─ 16"));
+        assert!(rendered.contains("4K ┐    │    │    ┌─ 1"));
         assert!(rendered.contains("  0001_0010_0011_0100"));
         assert!(rendered.contains("  15   11   7    3"));
+    }
+
+    #[test]
+    fn renders_balanced_ruler_for_32_bit_values() {
+        let rendered = render_visual(0x1234_5678).join("\n");
+
+        assert!(rendered.contains("64K ─┐      ┌─ 4K"));
+        assert!(rendered.contains("256M ┐  │    │    │      │    │    │    ┌─ 1"));
+    }
+
+    #[test]
+    fn renders_split_ruler_for_64_bit_values() {
+        let rendered = render_visual(0x1234_1234_1234_1234).join("\n");
+
+        assert!(rendered.contains("4G ─┐      ┌─ 256M"));
+        assert!(rendered.contains("1E ┐    │    │    │"));
+        assert!(rendered.contains("│    │    │    ┌─ 1"));
     }
 
     #[test]
