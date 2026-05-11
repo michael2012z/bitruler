@@ -92,19 +92,27 @@ fn parse_unsigned(input: &str) -> Result<u128, String> {
 }
 
 fn print_output(number: u128) {
-    let lines = render_visual(number);
-    warn_if_output_exceeds_terminal_width(&lines);
+    let visual_lines = render_visual(number);
+    let format_lines = format_lines(number);
+    let visual_line_count = visual_lines.len();
+    let mut lines = visual_lines;
+    lines.push(String::new());
+    lines.extend(format_lines);
 
-    for line in lines {
-        println!("{line}");
+    let terminal_width = terminal_width();
+    warn_if_output_exceeds_terminal_width(&lines, terminal_width);
+
+    for (index, line) in lines.iter().enumerate() {
+        if index < visual_line_count {
+            println!("{}", clip_line(line, terminal_width));
+        } else {
+            println!("{line}");
+        }
     }
-
-    println!();
-    print_formats(number);
 }
 
-fn warn_if_output_exceeds_terminal_width(lines: &[String]) {
-    let Some(terminal_width) = terminal_width() else {
+fn warn_if_output_exceeds_terminal_width(lines: &[String], terminal_width: Option<usize>) {
+    let Some(terminal_width) = terminal_width else {
         return;
     };
     let output_width = lines
@@ -114,10 +122,19 @@ fn warn_if_output_exceeds_terminal_width(lines: &[String]) {
         .unwrap_or(0);
 
     if output_width > terminal_width {
-        eprintln!(
+        let warning = format!(
             "Warning: output is {output_width} columns wide, but terminal is {terminal_width} columns wide."
         );
+        eprintln!("{}", clip_line(&warning, Some(terminal_width)));
     }
+}
+
+fn clip_line(line: &str, terminal_width: Option<usize>) -> String {
+    let Some(terminal_width) = terminal_width else {
+        return line.to_string();
+    };
+
+    line.chars().take(terminal_width).collect()
 }
 
 fn terminal_width() -> Option<usize> {
@@ -366,11 +383,13 @@ fn hex_pattern(digit: char) -> [&'static str; 7] {
     }
 }
 
-fn print_formats(number: u128) {
-    println!("HEX: {}", format_hex(number));
-    println!("DEC: {number}");
-    println!("OCT: 0o{number:o}");
-    println!("BIN: {}", format_bin(number));
+fn format_lines(number: u128) -> Vec<String> {
+    vec![
+        format!("HEX: {}", format_hex(number)),
+        format!("DEC: {number}"),
+        format!("OCT: 0o{number:o}"),
+        format!("BIN: {}", format_bin(number)),
+    ]
 }
 
 fn format_hex(number: u128) -> String {
@@ -461,6 +480,13 @@ mod tests {
     fn display_width_counts_rendered_columns() {
         assert_eq!(display_width("abc"), 3);
         assert_eq!(display_width("┌─ 16"), 5);
+    }
+
+    #[test]
+    fn clips_lines_to_terminal_width() {
+        assert_eq!(clip_line("abcdef", Some(4)), "abcd");
+        assert_eq!(clip_line("┌─ 16", Some(3)), "┌─ ");
+        assert_eq!(clip_line("abcdef", None), "abcdef");
     }
 
     #[test]
