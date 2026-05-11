@@ -5,9 +5,14 @@ fn main() {
     let program_name = args.next().unwrap_or_else(|| "bitruler".to_string());
 
     let input = match (args.next(), args.next()) {
+        (Some(flag), None) if is_help_flag(&flag) => {
+            print_help(&program_name);
+            return;
+        }
         (Some(input), None) => input,
         _ => {
             eprintln!("Usage: {program_name} <unsigned-number>");
+            eprintln!("Try '{program_name} --help' for more information.");
             process::exit(2);
         }
     };
@@ -19,6 +24,21 @@ fn main() {
             process::exit(1);
         }
     }
+}
+
+fn is_help_flag(input: &str) -> bool {
+    input == "-h" || input == "--help"
+}
+
+fn print_help(program_name: &str) {
+    println!(
+        "bitruler - visualize, decode, and inspect binary data\n\n\
+Usage:\n  {program_name} <unsigned-number>\n  {program_name} --help / -h\n\n\
+Arguments:\n  <unsigned-number>    Unsigned 64-bit integer to inspect\n\n\
+Accepted input formats:\n  Hexadecimal          0x1234\n  Decimal              4660\n  Octal                0o11064\n  Binary               0b0001_0010_0011_0100\n\n\
+Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 18446744073709551615 / 0xffff_ffff_ffff_ffff\n\n\
+Examples:\n  {program_name} 4660\n  {program_name} 0x1234\n  {program_name} 0b0001_0010_0011_0100"
+    );
 }
 
 fn parse_unsigned(input: &str) -> Result<u64, String> {
@@ -96,11 +116,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn recognizes_help_flags() {
+        assert!(is_help_flag("-h"));
+        assert!(is_help_flag("--help"));
+        assert!(!is_help_flag("0x1234"));
+    }
+
+    #[test]
     fn parses_supported_radixes() {
-        assert_eq!(parse_unsigned("0x1234_1234_1234_1234"), Ok(0x1234_1234_1234_1234));
-        assert_eq!(parse_unsigned("1311693406324658740"), Ok(0x1234_1234_1234_1234));
-        assert_eq!(parse_unsigned("0o110640443202215011064"), Ok(0x1234_1234_1234_1234));
-        assert_eq!(parse_unsigned("0b0001001000110100000100100011010000010010001101000001001000110100"), Ok(0x1234_1234_1234_1234));
+        assert_eq!(
+            parse_unsigned("0x1234_1234_1234_1234"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
+            parse_unsigned("1311693406324658740"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
+            parse_unsigned("0o110640443202215011064"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
+            parse_unsigned("0b0001001000110100000100100011010000010010001101000001001000110100"),
+            Ok(0x1234_1234_1234_1234)
+        );
     }
 
     #[test]
