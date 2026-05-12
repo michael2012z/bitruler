@@ -181,6 +181,10 @@ fn display_width(line: &str) -> usize {
     line.chars().count()
 }
 
+const LEFT_LABEL_WIDTH: usize = 5;
+const DATA_INDENT: usize = 0;
+const HEX_DIGIT_WIDTH: usize = 4;
+
 fn render_visual(number: u128) -> Vec<String> {
     let hex_digits = format!("{number:x}");
     let bit_width = hex_digits.len() * 4;
@@ -189,11 +193,23 @@ fn render_visual(number: u128) -> Vec<String> {
 
     let mut lines = Vec::new();
     lines.push(String::new());
-    lines.extend(render_ruler(&hex_digits));
+    lines.extend(add_left_labels(render_ruler(&hex_digits), "UNIT"));
     lines.push(String::new());
-    lines.extend(render_hex_digits(&hex_digits));
-    lines.extend(render_bit_area(&bit_digits));
+    lines.extend(add_left_labels(render_hex_digits(&hex_digits), "HEX"));
+    lines.push(String::new());
+    lines.extend(add_left_labels(render_bit_area(&bit_digits), " BIT POS"));
     lines
+}
+
+fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
+    lines
+        .into_iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let label = labels.chars().nth(index).unwrap_or(' ');
+            format!("{label}{:width$}{line}", "", width = LEFT_LABEL_WIDTH - 1)
+        })
+        .collect()
 }
 
 fn render_ruler(hex_digits: &[char]) -> Vec<String> {
@@ -212,8 +228,8 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
 
     for (index, label) in labels.iter().enumerate() {
         let row = ruler_row(index, split_index);
-        let hinge_column = ruler_hinge_column(index);
         let is_right_half = index >= split_index;
+        let hinge_column = ruler_hinge_column(index, is_right_half);
         let connector = if is_right_half {
             format!("┌─ {label}")
         } else if hinge_column + 1 < label.chars().count() + 3 {
@@ -248,13 +264,13 @@ fn ruler_row(index: usize, split_index: usize) -> usize {
 }
 
 fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
-    (0..7)
+    (0..5)
         .map(|row| {
             let tokens = hex_digits
                 .iter()
                 .map(|digit| hex_pattern(*digit)[row].to_string())
                 .collect::<Vec<_>>();
-            format!("  {}", join_visual_tokens(&tokens))
+            format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&tokens))
         })
         .collect()
 }
@@ -266,9 +282,7 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
         .map(|chunk| std::str::from_utf8(chunk).expect("binary digits are valid UTF-8"))
         .collect::<Vec<_>>();
     let nibble_count = chunks.len();
-    let top_connectors = vec!["──┬─".to_string(); nibble_count];
-    let vertical_connectors = vec!["  │ ".to_string(); nibble_count];
-    let bit_connectors = vec!["┌┬┼┐".to_string(); nibble_count];
+    let top_connectors = vec!["├┬┬┤".to_string(); nibble_count];
     let bottom_connectors = vec!["├──┘".to_string(); nibble_count];
     let bottom_verticals = vec!["│   ".to_string(); nibble_count];
     let bit_labels = (0..nibble_count)
@@ -276,17 +290,14 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
         .collect::<Vec<_>>();
 
     vec![
-        format!("  {}", join_visual_tokens(&top_connectors)),
-        format!("  {}", join_visual_tokens(&vertical_connectors)),
-        format!("  {}", join_visual_tokens(&vertical_connectors)),
-        format!("  {}", join_visual_tokens(&bit_connectors)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&top_connectors)),
         String::new(),
-        format!("  {}", join_bit_chunks(&chunks)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_bit_chunks(&chunks)),
         String::new(),
-        format!("  {}", join_visual_tokens(&bottom_connectors)),
-        format!("  {}", join_visual_tokens(&bottom_verticals)),
-        format!("  {}", join_visual_tokens(&bottom_verticals)),
-        format!("  {}", join_visual_tokens(&bit_labels)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_connectors)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_verticals)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_verticals)),
+        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bit_labels)),
     ]
 }
 
@@ -311,12 +322,20 @@ fn visual_width(token_count: usize) -> usize {
     if token_count == 0 {
         0
     } else {
-        ruler_hinge_column(token_count - 1) + 10
+        token_start_column(token_count - 1) + HEX_DIGIT_WIDTH + 10
     }
 }
 
-fn ruler_hinge_column(index: usize) -> usize {
-    index * 5 + (index / 4) * 2 + 3
+fn ruler_hinge_column(index: usize, is_right_half: bool) -> usize {
+    if is_right_half {
+        token_start_column(index)
+    } else {
+        token_start_column(index) + HEX_DIGIT_WIDTH - 1
+    }
+}
+
+fn token_start_column(index: usize) -> usize {
+    DATA_INDENT + index * 5 + (index / 4) * 2
 }
 
 fn write_at(line: &mut [char], column: usize, text: &str) {
@@ -361,24 +380,24 @@ fn format_power_of_two(shift: usize) -> String {
     }
 }
 
-fn hex_pattern(digit: char) -> [&'static str; 7] {
+fn hex_pattern(digit: char) -> [&'static str; 5] {
     match digit.to_ascii_lowercase() {
-        '0' => ["████", "█  █", "█  █", "█  █", "█  █", "█  █", "████"],
-        '1' => ["  █ ", " ██ ", "  █ ", "  █ ", "  █ ", "  █ ", " ███"],
-        '2' => ["████", "   █", "   █", "████", "█   ", "█   ", "████"],
-        '3' => ["████", "   █", "   █", "████", "   █", "   █", "████"],
-        '4' => ["█  █", "█  █", "█  █", "████", "   █", "   █", "   █"],
-        '5' => ["████", "█   ", "█   ", "████", "   █", "   █", "████"],
-        '6' => ["████", "█   ", "█   ", "████", "█  █", "█  █", "████"],
-        '7' => ["████", "   █", "   █", "  █ ", " █  ", " █  ", " █  "],
-        '8' => ["████", "█  █", "█  █", "████", "█  █", "█  █", "████"],
-        '9' => ["████", "█  █", "█  █", "████", "   █", "   █", "████"],
-        'a' => ["████", "█  █", "█  █", "████", "█  █", "█  █", "█  █"],
-        'b' => ["███ ", "█  █", "█  █", "███ ", "█  █", "█  █", "███ "],
-        'c' => ["████", "█   ", "█   ", "█   ", "█   ", "█   ", "████"],
-        'd' => ["███ ", "█  █", "█  █", "█  █", "█  █", "█  █", "███ "],
-        'e' => ["████", "█   ", "█   ", "████", "█   ", "█   ", "████"],
-        'f' => ["████", "█   ", "█   ", "████", "█   ", "█   ", "█   "],
+        '0' => ["████", "█  █", "█  █", "█  █", "████"],
+        '1' => ["  █ ", " ██ ", "  █ ", "  █ ", " ███"],
+        '2' => ["████", "   █", "████", "█   ", "████"],
+        '3' => ["████", "   █", "████", "   █", "████"],
+        '4' => ["█  █", "█  █", "████", "   █", "   █"],
+        '5' => ["████", "█   ", "████", "   █", "████"],
+        '6' => ["████", "█   ", "████", "█  █", "████"],
+        '7' => ["████", "   █", "  █ ", " █  ", " █  "],
+        '8' => ["████", "█  █", "████", "█  █", "████"],
+        '9' => ["████", "█  █", "████", "   █", "████"],
+        'a' => ["████", "█  █", "████", "█  █", "█  █"],
+        'b' => ["███ ", "█  █", "███ ", "█  █", "███ "],
+        'c' => ["████", "█   ", "█   ", "█   ", "████"],
+        'd' => ["███ ", "█  █", "█  █", "█  █", "███ "],
+        'e' => ["████", "█   ", "████", "█   ", "████"],
+        'f' => ["████", "█   ", "████", "█   ", "█   "],
         _ => unreachable!("hex formatter only emits hexadecimal digits"),
     }
 }
@@ -493,27 +512,40 @@ mod tests {
     fn renders_visual_layout_for_hex_digits() {
         let rendered = render_visual(0x1234).join("\n");
 
-        assert!(rendered.contains("256 ─┐    ┌─ 16"));
-        assert!(rendered.contains("4K ┐    │    │    ┌─ 1"));
-        assert!(rendered.contains("  0001_0010_0011_0100"));
-        assert!(rendered.contains("  15   11   7    3"));
+        let lines = rendered.lines().collect::<Vec<_>>();
+
+        assert_eq!(lines[1].trim_end(), "U       256 ─┐ ┌─ 16");
+        assert_eq!(lines[2].trim_end(), "N    4K ┐    │ │    ┌─ 1");
+        assert_eq!(lines[4].trim_end(), "H      █  ████ ████ █  █");
+        assert_eq!(lines[10].trim_end(), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
+        assert_eq!(lines[12].trim_end(), "I    0001_0010_0011_0100");
+        assert_eq!(lines[17].trim_end(), "S    15   11   7    3");
     }
 
     #[test]
     fn renders_balanced_ruler_for_32_bit_values() {
         let rendered = render_visual(0x1234_5678).join("\n");
 
-        assert!(rendered.contains("64K ─┐      ┌─ 4K"));
-        assert!(rendered.contains("256M ┐  │    │    │      │    │    │    ┌─ 1"));
+        let lines = rendered.lines().collect::<Vec<_>>();
+
+        assert_eq!(lines[1].trim_end(), "U                 64K ─┐   ┌─ 4K");
+        assert_eq!(
+            lines[4].trim_end(),
+            "T    256M ┐  │    │    │   │    │    │    ┌─ 1"
+        );
     }
 
     #[test]
     fn renders_split_ruler_for_64_bit_values() {
         let rendered = render_visual(0x1234_1234_1234_1234).join("\n");
 
-        assert!(rendered.contains("4G ─┐      ┌─ 256M"));
-        assert!(rendered.contains("1E ┐    │    │    │"));
-        assert!(rendered.contains("│    │    │    ┌─ 1"));
+        let lines = rendered.lines().collect::<Vec<_>>();
+
+        assert_eq!(lines[1].trim_end(), "U                                        4G ─┐   ┌─ 256M");
+        assert_eq!(
+            lines[8].trim_end(),
+            "     1E ┐    │    │    │      │    │    │    │   │    │    │    │      │    │    │    ┌─ 1"
+        );
     }
 
     #[test]
@@ -530,9 +562,13 @@ mod tests {
     fn renders_128_bit_values() {
         let rendered = render_visual(u128::MAX).join("\n");
 
-        assert!(rendered.contains("2^124"));
-        assert!(rendered.contains("16E"));
-        assert!(rendered.contains("│    │    │    ┌─ 1"));
+        let lines = rendered.lines().collect::<Vec<_>>();
+
+        assert!(lines[1].starts_with("U"));
+        assert!(lines[1].contains("16E ─┐   ┌─ 1E"));
+        assert!(lines[16].trim_end().starts_with("     2^124 ┐"));
+        assert!(rendered.contains("H    "));
+        assert!(rendered.contains("S    127  123  119  115"));
         assert_eq!(
             format_hex(u128::MAX),
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
