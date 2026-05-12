@@ -193,7 +193,7 @@ fn render_visual(number: u128) -> Vec<String> {
 
     let mut lines = Vec::new();
     lines.push(String::new());
-    lines.extend(add_left_labels(render_ruler(&hex_digits), "UNIT"));
+    lines.extend(render_ruler_with_left_labels(&hex_digits, "UNIT"));
     lines.push(String::new());
     lines.extend(add_left_labels(render_hex_digits(&hex_digits), "HEX"));
     lines.push(String::new());
@@ -212,8 +212,8 @@ fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
         .collect()
 }
 
-fn render_ruler(hex_digits: &[char]) -> Vec<String> {
-    let labels = hex_digits
+fn render_ruler_with_left_labels(hex_digits: &[char], left_labels: &str) -> Vec<String> {
+    let ruler_labels = hex_digits
         .iter()
         .enumerate()
         .map(|(index, _)| {
@@ -221,7 +221,26 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
             format_power_of_two(shift)
         })
         .collect::<Vec<_>>();
-    let width = visual_width(hex_digits.len());
+    let split_index = ruler_labels.len().div_ceil(2);
+    let left_overhang = ruler_left_overhang(hex_digits, &ruler_labels, split_index);
+
+    render_ruler_from_labels(hex_digits, &ruler_labels, left_overhang)
+        .into_iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let label = left_labels.chars().nth(index).unwrap_or(' ');
+            let padding_width = (LEFT_LABEL_WIDTH - 1).saturating_sub(left_overhang);
+            format!("{label}{:width$}{line}", "", width = padding_width)
+        })
+        .collect()
+}
+
+fn render_ruler_from_labels(
+    hex_digits: &[char],
+    labels: &[String],
+    left_overhang: usize,
+) -> Vec<String> {
+    let width = visual_width(labels.len()) + left_overhang;
     let split_index = labels.len().div_ceil(2);
     let row_count = split_index.max(labels.len() - split_index);
     let mut lines = vec![vec![' '; width]; row_count];
@@ -229,7 +248,7 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
     for (index, label) in labels.iter().enumerate() {
         let row = ruler_row(index, split_index);
         let is_right_half = index >= split_index;
-        let hinge_column = ruler_hinge_column(index, is_right_half, labels.len());
+        let hinge_column = ruler_hinge_column(index, is_right_half, hex_digits) + left_overhang;
         let connector = if is_right_half {
             format!("┌─ {label}")
         } else if hinge_column + 1 < label.chars().count() + 3 {
@@ -238,14 +257,14 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
             format!("{label} ─┐")
         };
         let connector_column = if is_right_half {
-            hinge_column
+            hinge_column as isize
         } else {
-            hinge_column.saturating_sub(connector.chars().count() - 1)
+            hinge_column as isize - (connector.chars().count() as isize - 1)
         };
         write_at(&mut lines[row], connector_column, &connector);
 
         for vertical_row in (row + 1)..lines.len() {
-            write_at(&mut lines[vertical_row], hinge_column, "│");
+            write_at(&mut lines[vertical_row], hinge_column as isize, "│");
         }
     }
 
@@ -253,6 +272,20 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
         .into_iter()
         .map(|line| line.into_iter().collect())
         .collect()
+}
+
+fn ruler_left_overhang(hex_digits: &[char], labels: &[String], split_index: usize) -> usize {
+    labels
+        .iter()
+        .take(split_index)
+        .enumerate()
+        .map(|(index, label)| {
+            let hinge_column = ruler_hinge_column(index, false, hex_digits);
+            let connector_width = format!("{label} ┐").chars().count();
+            connector_width.saturating_sub(hinge_column + 1)
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 fn ruler_row(index: usize, split_index: usize) -> usize {
@@ -346,12 +379,26 @@ fn visual_width(token_count: usize) -> usize {
     }
 }
 
-fn ruler_hinge_column(index: usize, is_right_half: bool, token_count: usize) -> usize {
+fn ruler_hinge_column(index: usize, is_right_half: bool, hex_digits: &[char]) -> usize {
+    let token_count = hex_digits.len();
     if is_right_half {
         token_start_column(index, token_count)
     } else {
-        token_start_column(index, token_count) + HEX_DIGIT_WIDTH - 1
+        token_start_column(index, token_count) + hex_right_edge(hex_digits[index])
     }
+}
+
+fn hex_right_edge(digit: char) -> usize {
+    hex_pattern(digit)
+        .iter()
+        .filter_map(|row| {
+            row.chars()
+                .enumerate()
+                .filter_map(|(index, character)| (character != ' ').then_some(index))
+                .last()
+        })
+        .max()
+        .unwrap_or(HEX_DIGIT_WIDTH - 1)
 }
 
 fn token_start_column(index: usize, token_count: usize) -> usize {
@@ -379,9 +426,16 @@ fn is_wide_group_gap(index: usize, token_count: usize) -> bool {
             > group_gap_count_before(index - 1, token_count)
 }
 
-fn write_at(line: &mut [char], column: usize, text: &str) {
+fn write_at(line: &mut [char], column: isize, text: &str) {
     for (offset, character) in text.chars().enumerate() {
-        if let Some(slot) = line.get_mut(column + offset) {
+        let Some(column) = column.checked_add(offset as isize) else {
+            continue;
+        };
+        let Ok(column) = usize::try_from(column) else {
+            continue;
+        };
+
+        if let Some(slot) = line.get_mut(column) {
             *slot = character;
         }
     }
@@ -574,7 +628,7 @@ mod tests {
         assert_eq!(lines[1].trim_end(), "U                 64K ─┐   ┌─ 4K");
         assert_eq!(
             lines[4].trim_end(),
-            "T    256M ┐  │    │    │   │    │    │    ┌─ 1"
+            "T  256M ┐    │    │    │   │    │    │    ┌─ 1"
         );
     }
 
@@ -629,6 +683,40 @@ mod tests {
     }
 
     #[test]
+    fn aligns_ruler_connectors_for_all_hex_lengths() {
+        for digit_count in 1..=32 {
+            let hex_digits = (0..digit_count)
+                .map(|index| char::from(b"123456789abcdef0"[index % 16]))
+                .collect::<Vec<_>>();
+            let lines = render_ruler_with_left_labels(&hex_digits, "UNIT");
+
+            assert_ruler_connectors_align(&lines, digit_count);
+        }
+    }
+
+    fn assert_ruler_connectors_align(lines: &[String], digit_count: usize) {
+        for (row, line) in lines.iter().enumerate() {
+            for (column, character) in line.chars().enumerate() {
+                if character == '┐' {
+                    for line in lines.iter().skip(row + 1) {
+                        assert_eq!(
+                            line.chars().nth(column),
+                            Some('│'),
+                            "left connector at row {row}, column {column} for {digit_count} digits is not aligned"
+                        );
+                    }
+                } else if character == '┌' && row + 1 < lines.len() {
+                    assert_eq!(
+                        lines[row + 1].chars().nth(column),
+                        Some('│'),
+                        "right connector at row {row}, column {column} for {digit_count} digits is not aligned"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn renders_128_bit_values() {
         let rendered = render_visual(u128::MAX).join("\n");
 
@@ -636,7 +724,7 @@ mod tests {
 
         assert!(lines[1].starts_with("U"));
         assert!(lines[1].contains("16E ─┐   ┌─ 1E"));
-        assert!(lines[16].trim_end().starts_with("     2^124 ┐"));
+        assert!(lines[16].trim_end().starts_with("  2^124 ┐    │"));
         assert!(rendered.contains("H    "));
         assert!(rendered.contains("S    127  123  119  115"));
         assert_eq!(
