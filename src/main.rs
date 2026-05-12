@@ -607,10 +607,8 @@ fn format_lines(number: u128) -> Vec<String> {
 fn format_hex(number: u128) -> String {
     let digits = format!("{number:x}");
     let mut formatted = String::from("0x");
-    let first_group_width = digits.len() % 4;
-
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (index == first_group_width || (first_group_width == 0 && index % 4 == 0)) {
+        if index > 0 && (digits.len() - index) % 4 == 0 {
             formatted.push('_');
         }
         formatted.push(digit);
@@ -720,6 +718,7 @@ mod tests {
     #[test]
     fn formats_hex_without_leading_zeroes() {
         assert_eq!(format_hex(0x1234_1234_1234_1234), "0x1234_1234_1234_1234");
+        assert_eq!(format_hex(0x1_2345_6789), "0x1_2345_6789");
         assert_eq!(format_hex(0x123_4567), "0x123_4567");
         assert_eq!(format_hex(1), "0x1");
         assert_eq!(format_hex(0), "0x0");
