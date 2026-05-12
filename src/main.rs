@@ -229,7 +229,7 @@ fn render_ruler(hex_digits: &[char]) -> Vec<String> {
     for (index, label) in labels.iter().enumerate() {
         let row = ruler_row(index, split_index);
         let is_right_half = index >= split_index;
-        let hinge_column = ruler_hinge_column(index, is_right_half);
+        let hinge_column = ruler_hinge_column(index, is_right_half, labels.len());
         let connector = if is_right_half {
             format!("┌─ {label}")
         } else if hinge_column + 1 < label.chars().count() + 3 {
@@ -290,14 +290,34 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
         .collect::<Vec<_>>();
 
     vec![
-        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&top_connectors)),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            join_visual_tokens(&top_connectors)
+        ),
         String::new(),
         format!("{}{}", " ".repeat(DATA_INDENT), join_bit_chunks(&chunks)),
         String::new(),
-        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_connectors)),
-        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_verticals)),
-        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bottom_verticals)),
-        format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&bit_labels)),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            join_visual_tokens(&bottom_connectors)
+        ),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            join_visual_tokens(&bottom_verticals)
+        ),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            join_visual_tokens(&bottom_verticals)
+        ),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            join_visual_tokens(&bit_labels)
+        ),
     ]
 }
 
@@ -307,7 +327,7 @@ fn join_visual_tokens(tokens: &[String]) -> String {
         .enumerate()
         .fold(String::new(), |mut output, (index, token)| {
             if index > 0 {
-                if index % 4 == 0 {
+                if is_wide_group_gap(index, tokens.len()) {
                     output.push_str("   ");
                 } else {
                     output.push(' ');
@@ -322,20 +342,41 @@ fn visual_width(token_count: usize) -> usize {
     if token_count == 0 {
         0
     } else {
-        token_start_column(token_count - 1) + HEX_DIGIT_WIDTH + 10
+        token_start_column(token_count - 1, token_count) + HEX_DIGIT_WIDTH + 10
     }
 }
 
-fn ruler_hinge_column(index: usize, is_right_half: bool) -> usize {
+fn ruler_hinge_column(index: usize, is_right_half: bool, token_count: usize) -> usize {
     if is_right_half {
-        token_start_column(index)
+        token_start_column(index, token_count)
     } else {
-        token_start_column(index) + HEX_DIGIT_WIDTH - 1
+        token_start_column(index, token_count) + HEX_DIGIT_WIDTH - 1
     }
 }
 
-fn token_start_column(index: usize) -> usize {
-    DATA_INDENT + index * 5 + (index / 4) * 2
+fn token_start_column(index: usize, token_count: usize) -> usize {
+    DATA_INDENT + index * 5 + group_gap_count_before(index, token_count) * 2
+}
+
+fn group_gap_count_before(index: usize, token_count: usize) -> usize {
+    if index == 0 {
+        return 0;
+    }
+
+    let first_group_width = token_count % 4;
+    if first_group_width == 0 {
+        index / 4
+    } else if index < first_group_width {
+        0
+    } else {
+        1 + (index - first_group_width) / 4
+    }
+}
+
+fn is_wide_group_gap(index: usize, token_count: usize) -> bool {
+    index > 0
+        && group_gap_count_before(index, token_count)
+            > group_gap_count_before(index - 1, token_count)
 }
 
 fn write_at(line: &mut [char], column: usize, text: &str) {
@@ -352,7 +393,7 @@ fn join_bit_chunks(chunks: &[&str]) -> String {
         .enumerate()
         .fold(String::new(), |mut output, (index, chunk)| {
             if index > 0 {
-                if index % 4 == 0 {
+                if is_wide_group_gap(index, chunks.len()) {
                     output.push_str(" _ ");
                 } else {
                     output.push('_');
@@ -414,9 +455,10 @@ fn format_lines(number: u128) -> Vec<String> {
 fn format_hex(number: u128) -> String {
     let digits = format!("{number:x}");
     let mut formatted = String::from("0x");
+    let first_group_width = digits.len() % 4;
 
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && index % 4 == 0 {
+        if index > 0 && (index == first_group_width || (first_group_width == 0 && index % 4 == 0)) {
             formatted.push('_');
         }
         formatted.push(digit);
@@ -484,6 +526,7 @@ mod tests {
     #[test]
     fn formats_hex_without_leading_zeroes() {
         assert_eq!(format_hex(0x1234_1234_1234_1234), "0x1234_1234_1234_1234");
+        assert_eq!(format_hex(0x123_4567), "0x123_4567");
         assert_eq!(format_hex(1), "0x1");
         assert_eq!(format_hex(0), "0x0");
     }
@@ -536,12 +579,39 @@ mod tests {
     }
 
     #[test]
+    fn renders_visual_groups_from_the_right() {
+        let rendered = render_visual(0x123_4567).join("\n");
+
+        let lines = rendered.lines().collect::<Vec<_>>();
+
+        assert_eq!(
+            lines[6].trim_end(),
+            "H      █  ████ ████   █  █ ████ ████ ████"
+        );
+        assert_eq!(
+            lines[12].trim_end(),
+            "     ├┬┬┤ ├┬┬┤ ├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤"
+        );
+        assert_eq!(
+            lines[14].trim_end(),
+            "I    0001_0010_0011 _ 0100_0101_0110_0111"
+        );
+        assert_eq!(
+            lines[19].trim_end(),
+            "S    27   23   19     15   11   7    3"
+        );
+    }
+
+    #[test]
     fn renders_split_ruler_for_64_bit_values() {
         let rendered = render_visual(0x1234_1234_1234_1234).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
-        assert_eq!(lines[1].trim_end(), "U                                        4G ─┐   ┌─ 256M");
+        assert_eq!(
+            lines[1].trim_end(),
+            "U                                        4G ─┐   ┌─ 256M"
+        );
         assert_eq!(
             lines[8].trim_end(),
             "     1E ┐    │    │    │      │    │    │    │   │    │    │    │      │    │    │    ┌─ 1"
