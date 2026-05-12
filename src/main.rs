@@ -316,10 +316,10 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
         .collect::<Vec<_>>();
     let nibble_count = chunks.len();
     let top_connectors = vec!["├┬┬┤".to_string(); nibble_count];
-    let bottom_connectors = vec!["├──┘".to_string(); nibble_count];
-    let bottom_verticals = vec!["│   ".to_string(); nibble_count];
+    let bottom_connectors = vec!["└──┤".to_string(); nibble_count];
+    let bottom_verticals = vec!["   │".to_string(); nibble_count];
     let bit_labels = (0..nibble_count)
-        .map(|index| format!("{:<4}", (nibble_count - index) * 4 - 1))
+        .map(|index| format!("{:>4}", (nibble_count - index - 1) * 4))
         .collect::<Vec<_>>();
 
     vec![
@@ -616,7 +616,7 @@ mod tests {
         assert_eq!(lines[4].trim_end(), "H      █  ████ ████ █  █");
         assert_eq!(lines[10].trim_end(), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
         assert_eq!(lines[12].trim_end(), "I    0001_0010_0011_0100");
-        assert_eq!(lines[17].trim_end(), "S    15   11   7    3");
+        assert_eq!(lines[17].trim_end(), "S      12    8    4    0");
     }
 
     #[test]
@@ -652,7 +652,7 @@ mod tests {
         );
         assert_eq!(
             lines[19].trim_end(),
-            "S    27   23   19     15   11   7    3"
+            "S      24   20   16     12    8    4    0"
         );
     }
 
@@ -726,7 +726,7 @@ mod tests {
         assert!(lines[1].contains("16E ─┐   ┌─ 1E"));
         assert!(lines[16].trim_end().starts_with("  2^124 ┐    │"));
         assert!(rendered.contains("H    "));
-        assert!(rendered.contains("S    127  123  119  115"));
+        assert!(rendered.contains("S     124  120  116  112"));
         assert_eq!(
             format_hex(u128::MAX),
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
