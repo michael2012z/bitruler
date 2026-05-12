@@ -225,6 +225,7 @@ const DATA_INDENT: usize = 0;
 const HEX_DIGIT_WIDTH: usize = 4;
 const HIGHLIGHT_START: &str = "\x1b[1m";
 const HIGHLIGHT_END: &str = "\x1b[0m";
+const COLOR_CYCLE: [&str; 4] = ["\x1b[34m", "\x1b[32m", "\x1b[33m", "\x1b[35m"];
 
 fn render_visual(number: u128) -> Vec<String> {
     let hex_digits = format!("{number:x}");
@@ -342,7 +343,8 @@ fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
         .map(|row| {
             let tokens = hex_digits
                 .iter()
-                .map(|digit| hex_pattern(*digit)[row].to_string())
+                .enumerate()
+                .map(|(index, digit)| colorize(index, hex_pattern(*digit)[row]))
                 .collect::<Vec<_>>();
             format!("{}{}", " ".repeat(DATA_INDENT), join_visual_tokens(&tokens))
         })
@@ -370,11 +372,7 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
             join_visual_tokens(&top_connectors)
         ),
         String::new(),
-        format!(
-            "{}{}",
-            " ".repeat(DATA_INDENT),
-            highlight_bit_digits(&join_bit_chunks(&chunks))
-        ),
+        format!("{}{}", " ".repeat(DATA_INDENT), render_bit_chunks(&chunks)),
         String::new(),
         format!(
             "{}{}",
@@ -486,7 +484,7 @@ fn write_at(line: &mut [char], column: isize, text: &str) {
     }
 }
 
-fn join_bit_chunks(chunks: &[&str]) -> String {
+fn render_bit_chunks(chunks: &[&str]) -> String {
     chunks
         .iter()
         .enumerate()
@@ -498,19 +496,26 @@ fn join_bit_chunks(chunks: &[&str]) -> String {
                     output.push('_');
                 }
             }
-            output.push_str(chunk);
+            output.push_str(&highlight_bit_digits(index, chunk));
             output
         })
 }
 
-fn highlight_bit_digits(input: &str) -> String {
+fn highlight_bit_digits(color_index: usize, input: &str) -> String {
+    let color = COLOR_CYCLE[color_index % COLOR_CYCLE.len()];
+
     input
         .chars()
         .map(|character| match character {
-            '0' | '1' => format!("{HIGHLIGHT_START}{character}{HIGHLIGHT_END}"),
+            '0' | '1' => format!("{HIGHLIGHT_START}{color}{character}{HIGHLIGHT_END}"),
             _ => character.to_string(),
         })
         .collect()
+}
+
+fn colorize(color_index: usize, input: &str) -> String {
+    let color = COLOR_CYCLE[color_index % COLOR_CYCLE.len()];
+    format!("{color}{input}{HIGHLIGHT_END}")
 }
 
 fn format_power_of_two(shift: usize) -> String {
@@ -684,9 +689,14 @@ mod tests {
     #[test]
     fn highlights_bit_digits() {
         assert_eq!(
-            highlight_bit_digits("10_01"),
-            "\x1b[1m1\x1b[0m\x1b[1m0\x1b[0m_\x1b[1m0\x1b[0m\x1b[1m1\x1b[0m"
+            highlight_bit_digits(0, "10_01"),
+            "\x1b[1m\x1b[34m1\x1b[0m\x1b[1m\x1b[34m0\x1b[0m_\x1b[1m\x1b[34m0\x1b[0m\x1b[1m\x1b[34m1\x1b[0m"
         );
+    }
+
+    #[test]
+    fn colorizes_hex_digits() {
+        assert_eq!(colorize(2, "████"), "\x1b[33m████\x1b[0m");
     }
 
     #[test]
@@ -697,7 +707,7 @@ mod tests {
 
         assert_eq!(lines[1].trim_end(), "U       256 ─┐ ┌─ 16");
         assert_eq!(lines[2].trim_end(), "N    4K ┐    │ │    ┌─ 1");
-        assert_eq!(lines[4].trim_end(), "H      █  ████ ████ █  █");
+        assert_eq!(strip_ansi(lines[4].trim_end()), "H      █  ████ ████ █  █");
         assert_eq!(lines[10].trim_end(), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
         assert_eq!(strip_ansi(lines[12].trim_end()), "I    0001_0010_0011_0100");
         assert_eq!(lines[17].trim_end(), "S      12    8    4    0");
@@ -723,7 +733,7 @@ mod tests {
         let lines = rendered.lines().collect::<Vec<_>>();
 
         assert_eq!(
-            lines[6].trim_end(),
+            strip_ansi(lines[6].trim_end()),
             "H      █  ████ ████   █  █ ████ ████ ████"
         );
         assert_eq!(
