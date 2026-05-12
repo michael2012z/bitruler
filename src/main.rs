@@ -226,7 +226,12 @@ const HEX_DIGIT_WIDTH: usize = 4;
 const HIGHLIGHT_START: &str = "\x1b[1m";
 const HIGHLIGHT_END: &str = "\x1b[0m";
 const GREY: &str = "\x1b[90m";
-const COLOR_CYCLE: [&str; 4] = ["\x1b[34m", "\x1b[32m", "\x1b[33m", "\x1b[35m"];
+const COLOR_CYCLE: [&str; 4] = [
+    "\x1b[38;2;110;158;248m",
+    "\x1b[38;2;180;244;164m",
+    "\x1b[38;2;212;155;255m",
+    "\x1b[38;2;39;200;238m",
+];
 
 fn render_visual(number: u128) -> Vec<String> {
     let hex_digits = format!("{number:x}");
@@ -722,13 +727,16 @@ mod tests {
     fn highlights_bit_digits() {
         assert_eq!(
             highlight_bit_digits(0, "10_01"),
-            "\x1b[1m\x1b[34m1\x1b[0m\x1b[1m\x1b[34m0\x1b[0m_\x1b[1m\x1b[34m0\x1b[0m\x1b[1m\x1b[34m1\x1b[0m"
+            "\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m_\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m"
         );
     }
 
     #[test]
     fn colorizes_hex_digits() {
-        assert_eq!(colorize(2, "████"), "\x1b[33m████\x1b[0m");
+        assert_eq!(
+            colorize(2, "████"),
+            "\x1b[38;2;212;155;255m████\x1b[0m"
+        );
     }
 
     #[test]
