@@ -104,7 +104,7 @@ fn print_output(number: u128) {
 
     for (index, line) in lines.iter().enumerate() {
         if index < visual_line_count {
-            println!("{}", clip_line(line, terminal_width));
+            println!("{}", clip_line(&trim_trailing_spaces(line), terminal_width));
         } else {
             println!("{line}");
         }
@@ -115,11 +115,7 @@ fn warn_if_output_exceeds_terminal_width(lines: &[String], terminal_width: Optio
     let Some(terminal_width) = terminal_width else {
         return;
     };
-    let output_width = lines
-        .iter()
-        .map(|line| display_width(line))
-        .max()
-        .unwrap_or(0);
+    let output_width = output_width(lines);
 
     if output_width > terminal_width {
         let warning = format!(
@@ -127,6 +123,56 @@ fn warn_if_output_exceeds_terminal_width(lines: &[String], terminal_width: Optio
         );
         eprintln!("{}", clip_line(&warning, Some(terminal_width)));
     }
+}
+
+fn output_width(lines: &[String]) -> usize {
+    lines
+        .iter()
+        .map(|line| display_width(&trim_trailing_spaces(line)))
+        .max()
+        .unwrap_or(0)
+}
+
+fn trim_trailing_spaces(line: &str) -> String {
+    enum Segment {
+        Ansi(String),
+        Character(char),
+    }
+
+    let mut segments = Vec::new();
+    let mut chars = line.chars().peekable();
+
+    while let Some(character) = chars.next() {
+        if character == '\x1b' {
+            let mut sequence = String::from(character);
+            for character in chars.by_ref() {
+                sequence.push(character);
+                if character == 'm' {
+                    break;
+                }
+            }
+            segments.push(Segment::Ansi(sequence));
+        } else {
+            segments.push(Segment::Character(character));
+        }
+    }
+
+    let Some(last_visible_index) = segments
+        .iter()
+        .rposition(|segment| matches!(segment, Segment::Character(character) if *character != ' '))
+    else {
+        return String::new();
+    };
+
+    segments
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, segment)| match segment {
+            Segment::Ansi(sequence) => Some(sequence),
+            Segment::Character(character) if index <= last_visible_index => Some(character.to_string()),
+            Segment::Character(_) => None,
+        })
+        .collect()
 }
 
 fn clip_line(line: &str, terminal_width: Option<usize>) -> String {
@@ -743,6 +789,14 @@ mod tests {
         assert_eq!(display_width("abc"), 3);
         assert_eq!(display_width("┌─ 16"), 5);
         assert_eq!(display_width("\x1b[1m0\x1b[0m"), 1);
+    }
+
+    #[test]
+    fn output_width_ignores_trailing_spaces() {
+        assert_eq!(
+            output_width(&["abc   ".to_string(), "\x1b[90mde\x1b[0m   ".to_string()]),
+            3
+        );
     }
 
     #[test]
