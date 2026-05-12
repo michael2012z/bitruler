@@ -134,7 +134,31 @@ fn clip_line(line: &str, terminal_width: Option<usize>) -> String {
         return line.to_string();
     };
 
-    line.chars().take(terminal_width).collect()
+    let mut clipped = String::new();
+    let mut width = 0;
+    let mut chars = line.chars().peekable();
+
+    while let Some(character) = chars.next() {
+        if character == '\x1b' {
+            clipped.push(character);
+            for character in chars.by_ref() {
+                clipped.push(character);
+                if character == 'm' {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        if width == terminal_width {
+            break;
+        }
+
+        clipped.push(character);
+        width += 1;
+    }
+
+    clipped
 }
 
 fn terminal_width() -> Option<usize> {
@@ -178,12 +202,29 @@ fn terminal_width_from_env() -> Option<usize> {
 }
 
 fn display_width(line: &str) -> usize {
-    line.chars().count()
+    let mut width = 0;
+    let mut chars = line.chars().peekable();
+
+    while let Some(character) = chars.next() {
+        if character == '\x1b' {
+            for character in chars.by_ref() {
+                if character == 'm' {
+                    break;
+                }
+            }
+        } else {
+            width += 1;
+        }
+    }
+
+    width
 }
 
 const LEFT_LABEL_WIDTH: usize = 5;
 const DATA_INDENT: usize = 0;
 const HEX_DIGIT_WIDTH: usize = 4;
+const HIGHLIGHT_START: &str = "\x1b[1m";
+const HIGHLIGHT_END: &str = "\x1b[0m";
 
 fn render_visual(number: u128) -> Vec<String> {
     let hex_digits = format!("{number:x}");
@@ -329,7 +370,11 @@ fn render_bit_area(bit_digits: &str) -> Vec<String> {
             join_visual_tokens(&top_connectors)
         ),
         String::new(),
-        format!("{}{}", " ".repeat(DATA_INDENT), join_bit_chunks(&chunks)),
+        format!(
+            "{}{}",
+            " ".repeat(DATA_INDENT),
+            highlight_bit_digits(&join_bit_chunks(&chunks))
+        ),
         String::new(),
         format!(
             "{}{}",
@@ -458,6 +503,16 @@ fn join_bit_chunks(chunks: &[&str]) -> String {
         })
 }
 
+fn highlight_bit_digits(input: &str) -> String {
+    input
+        .chars()
+        .map(|character| match character {
+            '0' | '1' => format!("{HIGHLIGHT_START}{character}{HIGHLIGHT_END}"),
+            _ => character.to_string(),
+        })
+        .collect()
+}
+
 fn format_power_of_two(shift: usize) -> String {
     match shift {
         0 => "1".to_string(),
@@ -541,6 +596,25 @@ fn format_bin(number: u128) -> String {
 mod tests {
     use super::*;
 
+    fn strip_ansi(input: &str) -> String {
+        let mut stripped = String::new();
+        let mut chars = input.chars().peekable();
+
+        while let Some(character) = chars.next() {
+            if character == '\x1b' {
+                for character in chars.by_ref() {
+                    if character == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                stripped.push(character);
+            }
+        }
+
+        stripped
+    }
+
     #[test]
     fn recognizes_help_flags() {
         assert!(is_help_flag("-h"));
@@ -596,13 +670,23 @@ mod tests {
     fn display_width_counts_rendered_columns() {
         assert_eq!(display_width("abc"), 3);
         assert_eq!(display_width("┌─ 16"), 5);
+        assert_eq!(display_width("\x1b[1m0\x1b[0m"), 1);
     }
 
     #[test]
     fn clips_lines_to_terminal_width() {
         assert_eq!(clip_line("abcdef", Some(4)), "abcd");
         assert_eq!(clip_line("┌─ 16", Some(3)), "┌─ ");
+        assert_eq!(strip_ansi(&clip_line("\x1b[1m0\x1b[0m123", Some(3))), "012");
         assert_eq!(clip_line("abcdef", None), "abcdef");
+    }
+
+    #[test]
+    fn highlights_bit_digits() {
+        assert_eq!(
+            highlight_bit_digits("10_01"),
+            "\x1b[1m1\x1b[0m\x1b[1m0\x1b[0m_\x1b[1m0\x1b[0m\x1b[1m1\x1b[0m"
+        );
     }
 
     #[test]
@@ -615,7 +699,7 @@ mod tests {
         assert_eq!(lines[2].trim_end(), "N    4K ┐    │ │    ┌─ 1");
         assert_eq!(lines[4].trim_end(), "H      █  ████ ████ █  █");
         assert_eq!(lines[10].trim_end(), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
-        assert_eq!(lines[12].trim_end(), "I    0001_0010_0011_0100");
+        assert_eq!(strip_ansi(lines[12].trim_end()), "I    0001_0010_0011_0100");
         assert_eq!(lines[17].trim_end(), "S      12    8    4    0");
     }
 
@@ -647,7 +731,7 @@ mod tests {
             "     ├┬┬┤ ├┬┬┤ ├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤"
         );
         assert_eq!(
-            lines[14].trim_end(),
+            strip_ansi(lines[14].trim_end()),
             "I    0001_0010_0011 _ 0100_0101_0110_0111"
         );
         assert_eq!(
