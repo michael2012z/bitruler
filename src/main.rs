@@ -225,6 +225,7 @@ const DATA_INDENT: usize = 0;
 const HEX_DIGIT_WIDTH: usize = 4;
 const HIGHLIGHT_START: &str = "\x1b[1m";
 const HIGHLIGHT_END: &str = "\x1b[0m";
+const GREY: &str = "\x1b[90m";
 const COLOR_CYCLE: [&str; 4] = ["\x1b[34m", "\x1b[32m", "\x1b[33m", "\x1b[35m"];
 
 fn render_visual(number: u128) -> Vec<String> {
@@ -241,6 +242,37 @@ fn render_visual(number: u128) -> Vec<String> {
     lines.push(String::new());
     lines.extend(add_left_labels(render_bit_area(&bit_digits), " BIT POS"));
     lines
+        .into_iter()
+        .map(|line| grey_visual_scaffolding(&line))
+        .collect()
+}
+
+fn grey_visual_scaffolding(line: &str) -> String {
+    let mut output = String::new();
+    let mut chars = line.chars().peekable();
+    let mut styled_content = false;
+
+    while let Some(character) = chars.next() {
+        if character == '\x1b' {
+            let mut sequence = String::from(character);
+            for character in chars.by_ref() {
+                sequence.push(character);
+                if character == 'm' {
+                    break;
+                }
+            }
+            styled_content = sequence != HIGHLIGHT_END;
+            output.push_str(&sequence);
+        } else if styled_content || character == ' ' {
+            output.push(character);
+        } else {
+            output.push_str(GREY);
+            output.push(character);
+            output.push_str(HIGHLIGHT_END);
+        }
+    }
+
+    output
 }
 
 fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
@@ -700,17 +732,25 @@ mod tests {
     }
 
     #[test]
+    fn greys_visual_scaffolding() {
+        assert_eq!(
+            grey_visual_scaffolding("A \x1b[34mB\x1b[0m"),
+            "\x1b[90mA\x1b[0m \x1b[34mB\x1b[0m"
+        );
+    }
+
+    #[test]
     fn renders_visual_layout_for_hex_digits() {
         let rendered = render_visual(0x1234).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
-        assert_eq!(lines[1].trim_end(), "U       256 ─┐ ┌─ 16");
-        assert_eq!(lines[2].trim_end(), "N    4K ┐    │ │    ┌─ 1");
+        assert_eq!(strip_ansi(lines[1].trim_end()), "U       256 ─┐ ┌─ 16");
+        assert_eq!(strip_ansi(lines[2].trim_end()), "N    4K ┐    │ │    ┌─ 1");
         assert_eq!(strip_ansi(lines[4].trim_end()), "H      █  ████ ████ █  █");
-        assert_eq!(lines[10].trim_end(), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
+        assert_eq!(strip_ansi(lines[10].trim_end()), "     ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
         assert_eq!(strip_ansi(lines[12].trim_end()), "I    0001_0010_0011_0100");
-        assert_eq!(lines[17].trim_end(), "S      12    8    4    0");
+        assert_eq!(strip_ansi(lines[17].trim_end()), "S      12    8    4    0");
     }
 
     #[test]
@@ -719,9 +759,12 @@ mod tests {
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
-        assert_eq!(lines[1].trim_end(), "U                 64K ─┐   ┌─ 4K");
         assert_eq!(
-            lines[4].trim_end(),
+            strip_ansi(lines[1].trim_end()),
+            "U                 64K ─┐   ┌─ 4K"
+        );
+        assert_eq!(
+            strip_ansi(lines[4].trim_end()),
             "T  256M ┐    │    │    │   │    │    │    ┌─ 1"
         );
     }
@@ -737,7 +780,7 @@ mod tests {
             "H      █  ████ ████   █  █ ████ ████ ████"
         );
         assert_eq!(
-            lines[12].trim_end(),
+            strip_ansi(lines[12].trim_end()),
             "     ├┬┬┤ ├┬┬┤ ├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤"
         );
         assert_eq!(
@@ -745,7 +788,7 @@ mod tests {
             "I    0001_0010_0011 _ 0100_0101_0110_0111"
         );
         assert_eq!(
-            lines[19].trim_end(),
+            strip_ansi(lines[19].trim_end()),
             "S      24   20   16     12    8    4    0"
         );
     }
@@ -757,11 +800,11 @@ mod tests {
         let lines = rendered.lines().collect::<Vec<_>>();
 
         assert_eq!(
-            lines[1].trim_end(),
+            strip_ansi(lines[1].trim_end()),
             "U                                        4G ─┐   ┌─ 256M"
         );
         assert_eq!(
-            lines[8].trim_end(),
+            strip_ansi(lines[8].trim_end()),
             "     1E ┐    │    │    │      │    │    │    │   │    │    │    │      │    │    │    ┌─ 1"
         );
     }
@@ -783,6 +826,10 @@ mod tests {
                 .map(|index| char::from(b"123456789abcdef0"[index % 16]))
                 .collect::<Vec<_>>();
             let lines = render_ruler_with_left_labels(&hex_digits, "UNIT");
+            let lines = lines
+                .iter()
+                .map(|line| strip_ansi(line))
+                .collect::<Vec<_>>();
 
             assert_ruler_connectors_align(&lines, digit_count);
         }
@@ -816,11 +863,11 @@ mod tests {
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
-        assert!(lines[1].starts_with("U"));
-        assert!(lines[1].contains("16E ─┐   ┌─ 1E"));
-        assert!(lines[16].trim_end().starts_with("  2^124 ┐    │"));
-        assert!(rendered.contains("H    "));
-        assert!(rendered.contains("S     124  120  116  112"));
+        assert!(strip_ansi(lines[1]).starts_with("U"));
+        assert!(strip_ansi(lines[1]).contains("16E ─┐   ┌─ 1E"));
+        assert!(strip_ansi(lines[16].trim_end()).starts_with("  2^124 ┐    │"));
+        assert!(strip_ansi(&rendered).contains("H    "));
+        assert!(strip_ansi(&rendered).contains("S     124  120  116  112"));
         assert_eq!(
             format_hex(u128::MAX),
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
