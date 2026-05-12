@@ -600,6 +600,7 @@ fn format_lines(number: u128) -> Vec<String> {
         format!("DEC: {number}"),
         format!("OCT: 0o{number:o}"),
         format!("BIN: {}", format_bin(number)),
+        format!("ASC: {}", format_ascii(number)),
     ]
 }
 
@@ -632,6 +633,29 @@ fn format_bin(number: u128) -> String {
     }
 
     formatted
+}
+
+fn format_ascii(number: u128) -> String {
+    let byte_width = byte_width(number);
+
+    (0..byte_width)
+        .rev()
+        .map(|index| {
+            let byte = ((number >> (index * 8)) & 0xff) as u8;
+            match byte {
+                0x20..=0x7e => char::from(byte),
+                _ => '.',
+            }
+        })
+        .collect()
+}
+
+fn byte_width(number: u128) -> usize {
+    if number == 0 {
+        1
+    } else {
+        (128 - number.leading_zeros() as usize).div_ceil(8)
+    }
 }
 
 #[cfg(test)]
@@ -706,6 +730,13 @@ mod tests {
         assert_eq!(format_bin(0x1234), "0b0001_0010_0011_0100");
         assert_eq!(format_bin(1), "0b0001");
         assert_eq!(format_bin(0), "0b0000");
+    }
+
+    #[test]
+    fn formats_ascii_from_bytes() {
+        assert_eq!(format_ascii(0x4865_6c6c_6f), "Hello");
+        assert_eq!(format_ascii(0x41_7f), "A.");
+        assert_eq!(format_ascii(0), ".");
     }
 
     #[test]
