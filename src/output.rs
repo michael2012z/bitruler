@@ -1,15 +1,17 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Terminal output assembly, clipping, and width warnings.
+
 use crate::{format::format_lines, render::render_visual, terminal};
 
-pub fn print_output(number: u128) {
+pub(super) fn print_output(number: u128) {
     let visual_lines = render_visual(number);
-    let format_lines = format_lines(number);
+    let text_lines = format_lines(number);
     let visual_line_count = visual_lines.len();
     let mut lines = visual_lines;
     lines.push(String::new());
-    lines.extend(format_lines);
+    lines.extend(text_lines);
 
     let terminal_width = terminal::terminal_width();
     warn_if_output_exceeds_terminal_width(&lines, terminal_width);
@@ -124,25 +126,7 @@ fn clip_line(line: &str, terminal_width: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn strip_ansi(input: &str) -> String {
-        let mut stripped = String::new();
-        let mut chars = input.chars().peekable();
-
-        while let Some(character) = chars.next() {
-            if character == '\x1b' {
-                for character in chars.by_ref() {
-                    if character == 'm' {
-                        break;
-                    }
-                }
-            } else {
-                stripped.push(character);
-            }
-        }
-
-        stripped
-    }
+    use crate::test_support::strip_ansi;
 
     #[test]
     fn output_width_ignores_trailing_spaces() {

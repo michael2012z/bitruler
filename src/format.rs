@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
-pub fn format_lines(number: u128) -> Vec<String> {
+//! Text area formatting: HEX, DEC, OCT, BIN, and ASC lines.
+
+pub(super) fn format_lines(number: u128) -> Vec<String> {
     vec![
         format!("HEX: {}", format_hex(number)),
         format!("DEC: {number}"),
@@ -11,7 +13,7 @@ pub fn format_lines(number: u128) -> Vec<String> {
     ]
 }
 
-pub fn format_hex(number: u128) -> String {
+pub(super) fn format_hex(number: u128) -> String {
     let digits = format!("{number:x}");
     let mut formatted = String::from("0x");
     for (index, digit) in digits.chars().enumerate() {
@@ -24,7 +26,7 @@ pub fn format_hex(number: u128) -> String {
     formatted
 }
 
-pub fn format_bin(number: u128) -> String {
+fn format_bin(number: u128) -> String {
     let digits = format!("{number:b}");
     let padding = (4 - digits.len() % 4) % 4;
     let digits = format!("{}{}", "0".repeat(padding), digits);
@@ -40,7 +42,7 @@ pub fn format_bin(number: u128) -> String {
     formatted
 }
 
-pub fn format_ascii(number: u128) -> String {
+fn format_ascii(number: u128) -> String {
     let byte_width = byte_width(number);
 
     (0..byte_width)

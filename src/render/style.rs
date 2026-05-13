@@ -1,22 +1,24 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
-pub const HIGHLIGHT_START: &str = "\x1b[1m";
-pub const HIGHLIGHT_END: &str = "\x1b[0m";
-pub const GREY: &str = "\x1b[90m";
-pub const COLOR_CYCLE: [&str; 4] = [
+//! ANSI color styling for data and grey visual scaffolding.
+
+pub(super) const HIGHLIGHT_START: &str = "\x1b[1m";
+pub(super) const HIGHLIGHT_END: &str = "\x1b[0m";
+const GREY: &str = "\x1b[90m";
+pub(super) const COLOR_CYCLE: [&str; 4] = [
     "\x1b[38;2;110;158;248m",
     "\x1b[38;2;180;244;164m",
     "\x1b[38;2;212;155;255m",
     "\x1b[38;2;39;200;238m",
 ];
 
-pub fn colorize(color_index: usize, input: &str) -> String {
+pub(super) fn colorize(color_index: usize, input: &str) -> String {
     let color = COLOR_CYCLE[color_index % COLOR_CYCLE.len()];
     format!("{color}{input}{HIGHLIGHT_END}")
 }
 
-pub fn grey_visual_scaffolding(line: &str) -> String {
+pub(super) fn grey_visual_scaffolding(line: &str) -> String {
     let mut output = String::new();
     let mut chars = line.chars().peekable();
     let mut styled_content = false;

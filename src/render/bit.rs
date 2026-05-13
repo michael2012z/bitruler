@@ -1,18 +1,24 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Bit area, dividers, and Position area rendering.
+
 use super::{layout, style};
 
-pub fn render_bit_area(bit_digits: &str) -> Vec<String> {
+const TOP_CONNECTOR: &str = "├┬┬┤";
+const BOTTOM_CONNECTOR: &str = "└──┤";
+const BOTTOM_VERTICAL: &str = "   │";
+
+pub(super) fn render_bit_area(bit_digits: &str) -> Vec<String> {
     let chunks = bit_digits
         .as_bytes()
         .chunks(4)
         .map(|chunk| std::str::from_utf8(chunk).expect("binary digits are valid UTF-8"))
         .collect::<Vec<_>>();
     let nibble_count = chunks.len();
-    let top_connectors = vec!["├┬┬┤".to_string(); nibble_count];
-    let bottom_connectors = vec!["└──┤".to_string(); nibble_count];
-    let bottom_verticals = vec!["   │".to_string(); nibble_count];
+    let top_connectors = repeated_tokens(TOP_CONNECTOR, nibble_count);
+    let bottom_connectors = repeated_tokens(BOTTOM_CONNECTOR, nibble_count);
+    let bottom_verticals = repeated_tokens(BOTTOM_VERTICAL, nibble_count);
     let bit_labels = (0..nibble_count)
         .map(|index| format!("{:>4}", (nibble_count - index - 1) * 4))
         .collect::<Vec<_>>();
@@ -53,6 +59,10 @@ pub fn render_bit_area(bit_digits: &str) -> Vec<String> {
     ]
 }
 
+fn repeated_tokens(token: &str, count: usize) -> Vec<String> {
+    vec![token.to_string(); count]
+}
+
 fn render_bit_chunks(chunks: &[&str]) -> String {
     chunks
         .iter()
@@ -91,7 +101,7 @@ fn highlight_bit_digits(color_index: usize, input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::tests::strip_ansi;
+    use crate::test_support::strip_ansi;
 
     #[test]
     fn highlights_bit_digits() {

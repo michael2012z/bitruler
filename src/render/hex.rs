@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Hex area digit glyph rendering.
+
 use super::{layout, style};
 
-pub fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
+pub(super) fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
     (0..5)
         .map(|row| {
             let tokens = hex_digits
@@ -20,7 +22,7 @@ pub fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
         .collect()
 }
 
-pub fn hex_right_edge(digit: char) -> usize {
+pub(super) fn hex_right_edge(digit: char) -> usize {
     hex_pattern(digit)
         .iter()
         .filter_map(|row| {
@@ -58,7 +60,7 @@ fn hex_pattern(digit: char) -> [&'static str; 5] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::tests::strip_ansi;
+    use crate::test_support::strip_ansi;
 
     #[test]
     fn renders_all_hex_digit_patterns() {

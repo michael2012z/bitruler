@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Unit area ruler labels and connector rendering.
+
 use super::{hex, layout};
 
-pub fn render_ruler_with_left_labels(hex_digits: &[char], left_labels: &str) -> Vec<String> {
+pub(super) fn render_ruler_with_left_labels(hex_digits: &[char], left_labels: &str) -> Vec<String> {
     let ruler_labels = hex_digits
         .iter()
         .enumerate()
@@ -116,7 +118,7 @@ fn format_power_of_two(shift: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::tests::strip_ansi;
+    use crate::test_support::strip_ansi;
 
     #[test]
     fn formats_power_of_two_labels() {

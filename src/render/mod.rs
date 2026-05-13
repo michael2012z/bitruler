@@ -1,17 +1,19 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Visual area rendering for Unit, Hex, Bit, and Position areas.
+
 mod bit;
 mod hex;
 mod layout;
 mod ruler;
 mod style;
 
-pub fn render_visual(number: u128) -> Vec<String> {
-    let hex_digits = format!("{number:x}");
-    let bit_width = hex_digits.len() * 4;
+pub(super) fn render_visual(number: u128) -> Vec<String> {
+    let hex_string = format!("{number:x}");
+    let bit_width = hex_string.len() * 4;
     let bit_digits = format!("{number:0bit_width$b}");
-    let hex_digits = hex_digits.chars().collect::<Vec<_>>();
+    let hex_digits = hex_string.chars().collect::<Vec<_>>();
 
     let mut lines = Vec::new();
     lines.push(String::new());
@@ -33,28 +35,10 @@ pub fn render_visual(number: u128) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use crate::format::format_hex;
-
-    pub(crate) fn strip_ansi(input: &str) -> String {
-        let mut stripped = String::new();
-        let mut chars = input.chars().peekable();
-
-        while let Some(character) = chars.next() {
-            if character == '\x1b' {
-                for character in chars.by_ref() {
-                    if character == 'm' {
-                        break;
-                    }
-                }
-            } else {
-                stripped.push(character);
-            }
-        }
-
-        stripped
-    }
+    use crate::test_support::strip_ansi;
 
     #[test]
     fn renders_visual_layout_for_hex_digits() {

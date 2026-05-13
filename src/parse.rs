@@ -1,14 +1,26 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
-pub fn parse_unsigned(input: &str) -> Result<u128, String> {
+//! Input number parsing for all accepted radix prefixes.
+
+pub(super) fn parse_unsigned(input: &str) -> Result<u128, String> {
     let normalized = input.replace('_', "");
 
     if normalized.is_empty() {
         return Err("number is empty".to_string());
     }
 
-    let (digits, radix) = if let Some(digits) = normalized
+    let (digits, radix) = split_radix(&normalized);
+
+    if digits.is_empty() {
+        return Err("number has no digits".to_string());
+    }
+
+    u128::from_str_radix(digits, radix).map_err(|_| format!("invalid unsigned number: {input}"))
+}
+
+fn split_radix(normalized: &str) -> (&str, u32) {
+    if let Some(digits) = normalized
         .strip_prefix("0x")
         .or_else(|| normalized.strip_prefix("0X"))
     {
@@ -24,14 +36,8 @@ pub fn parse_unsigned(input: &str) -> Result<u128, String> {
     {
         (digits, 2)
     } else {
-        (normalized.as_str(), 10)
-    };
-
-    if digits.is_empty() {
-        return Err("number has no digits".to_string());
+        (normalized, 10)
     }
-
-    u128::from_str_radix(digits, radix).map_err(|_| format!("invalid unsigned number: {input}"))
 }
 
 #[cfg(test)]

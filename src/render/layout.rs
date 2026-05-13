@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
-pub const LEFT_LABEL_WIDTH: usize = 5;
-pub const DATA_INDENT: usize = 0;
-pub const HEX_DIGIT_WIDTH: usize = 4;
+//! Shared visual layout helpers for grouped hex nibbles.
 
-pub fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
+pub(super) const LEFT_LABEL_WIDTH: usize = 5;
+pub(super) const DATA_INDENT: usize = 0;
+pub(super) const HEX_DIGIT_WIDTH: usize = 4;
+
+pub(super) fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
     lines
         .into_iter()
         .enumerate()
@@ -16,7 +18,7 @@ pub fn add_left_labels(lines: Vec<String>, labels: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn join_visual_tokens(tokens: &[String]) -> String {
+pub(super) fn join_visual_tokens(tokens: &[String]) -> String {
     tokens
         .iter()
         .enumerate()
@@ -33,7 +35,7 @@ pub fn join_visual_tokens(tokens: &[String]) -> String {
         })
 }
 
-pub fn visual_width(token_count: usize) -> usize {
+pub(super) fn visual_width(token_count: usize) -> usize {
     if token_count == 0 {
         0
     } else {
@@ -41,11 +43,11 @@ pub fn visual_width(token_count: usize) -> usize {
     }
 }
 
-pub fn token_start_column(index: usize, token_count: usize) -> usize {
+pub(super) fn token_start_column(index: usize, token_count: usize) -> usize {
     DATA_INDENT + index * 5 + group_gap_count_before(index, token_count) * 2
 }
 
-pub fn group_gap_count_before(index: usize, token_count: usize) -> usize {
+pub(super) fn group_gap_count_before(index: usize, token_count: usize) -> usize {
     if index == 0 {
         return 0;
     }
@@ -60,13 +62,13 @@ pub fn group_gap_count_before(index: usize, token_count: usize) -> usize {
     }
 }
 
-pub fn is_wide_group_gap(index: usize, token_count: usize) -> bool {
+pub(super) fn is_wide_group_gap(index: usize, token_count: usize) -> bool {
     index > 0
         && group_gap_count_before(index, token_count)
             > group_gap_count_before(index - 1, token_count)
 }
 
-pub fn write_at(line: &mut [char], column: isize, text: &str) {
+pub(super) fn write_at(line: &mut [char], column: isize, text: &str) {
     for (offset, character) in text.chars().enumerate() {
         let Some(column) = column.checked_add(offset as isize) else {
             continue;

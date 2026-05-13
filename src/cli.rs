@@ -1,19 +1,21 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
-pub fn is_help_flag(input: &str) -> bool {
+//! CLI flag handling and user-facing help/version text.
+
+pub(super) fn is_help_flag(input: &str) -> bool {
     input == "-h" || input == "--help"
 }
 
-pub fn is_version_flag(input: &str) -> bool {
+pub(super) fn is_version_flag(input: &str) -> bool {
     input == "-v" || input == "--version"
 }
 
-pub fn print_version() {
+pub(super) fn print_version() {
     println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 }
 
-pub fn print_help(program_name: &str) {
+pub(super) fn print_help(program_name: &str) {
     println!(
         "bitruler - visualize, decode, and inspect binary data\n\n\
 Usage:\n  {program_name} <unsigned-number>\n  {program_name} --help / -h\n  {program_name} --version / -v\n\n\

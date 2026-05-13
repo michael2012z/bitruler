@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Michael Zhao
 // SPDX-License-Identifier: MIT
 
+//! Terminal size probing and ANSI-aware display width helpers.
+
 use std::{env, io};
 
 #[cfg(unix)]
@@ -20,7 +22,7 @@ unsafe extern "C" {
     fn ioctl(file_descriptor: i32, request: u64, ...) -> i32;
 }
 
-pub fn terminal_width() -> Option<usize> {
+pub(super) fn terminal_width() -> Option<usize> {
     terminal_width_from_ioctl().or_else(terminal_width_from_env)
 }
 
@@ -60,7 +62,7 @@ fn terminal_width_from_env() -> Option<usize> {
         .filter(|columns| *columns > 0)
 }
 
-pub fn display_width(line: &str) -> usize {
+pub(super) fn display_width(line: &str) -> usize {
     let mut width = 0;
     let mut chars = line.chars().peekable();
 
