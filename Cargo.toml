@@ -4,5 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Michael Zhao"]
 license = "MIT"
+description = "A command-line utility for visualizing, decoding, and inspecting binary data and bit fields."
+readme = "README.md"
+repository = "https://github.com/michael2012z/bitruler"
+homepage = "https://github.com/michael2012z/bitruler"
+keywords = ["binary", "bits", "hex", "cli", "ruler"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
