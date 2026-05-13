@@ -142,4 +142,51 @@ pub(crate) mod tests {
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
         );
     }
+
+    #[test]
+    fn renders_all_hex_lengths_with_expected_position_labels() {
+        for hex_length in 1..=32 {
+            let number = if hex_length == 32 {
+                u128::MAX
+            } else {
+                (1_u128 << (hex_length * 4)) - 1
+            };
+            let rendered = render_visual(number).join("\n");
+            let stripped = strip_ansi(&rendered);
+            let lines = stripped.lines().collect::<Vec<_>>();
+            let position_line = lines
+                .iter()
+                .find(|line| line.starts_with('S'))
+                .expect("rendered output has a Position area line");
+            let positions = position_line
+                .split_whitespace()
+                .skip(1)
+                .map(|position| position.parse::<usize>().expect("position is numeric"))
+                .collect::<Vec<_>>();
+            let expected_positions = (0..hex_length)
+                .rev()
+                .map(|index| index * 4)
+                .collect::<Vec<_>>();
+
+            assert_eq!(positions, expected_positions, "hex_length={hex_length}");
+            assert!(stripped.contains("H    "), "hex_length={hex_length}");
+            assert!(stripped.contains("I    "), "hex_length={hex_length}");
+        }
+    }
+
+    #[test]
+    fn renders_short_hex_lengths() {
+        let cases = [
+            (0xf, "S       0", "I    1111"),
+            (0xff, "S       4    0", "I    1111_1111"),
+            (0xfff, "S       8    4    0", "I    1111_1111_1111"),
+        ];
+
+        for (number, expected_positions, expected_bits) in cases {
+            let rendered = strip_ansi(&render_visual(number).join("\n"));
+
+            assert!(rendered.contains(expected_positions), "number={number:#x}");
+            assert!(rendered.contains(expected_bits), "number={number:#x}");
+        }
+    }
 }

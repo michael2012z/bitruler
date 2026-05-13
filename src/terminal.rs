@@ -89,4 +89,9 @@ mod tests {
         assert_eq!(display_width("┌─ 16"), 5);
         assert_eq!(display_width("\x1b[1m0\x1b[0m"), 1);
     }
+
+    #[test]
+    fn display_width_ignores_multiple_ansi_sequences() {
+        assert_eq!(display_width("\x1b[31mab\x1b[0m\x1b[1mcd\x1b[0m"), 4);
+    }
 }

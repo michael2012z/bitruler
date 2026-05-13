@@ -89,4 +89,18 @@ mod tests {
         assert_eq!(format_ascii(0x41_7f), "A.");
         assert_eq!(format_ascii(0), ".");
     }
+
+    #[test]
+    fn formats_all_text_area_lines() {
+        assert_eq!(
+            format_lines(0x1234),
+            vec![
+                "HEX: 0x1234",
+                "DEC: 4660",
+                "OCT: 0o11064",
+                "BIN: 0b0001_0010_0011_0100",
+                "ASC: .4",
+            ]
+        );
+    }
 }

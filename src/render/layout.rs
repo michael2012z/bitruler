@@ -80,3 +80,41 @@ pub fn write_at(line: &mut [char], column: isize, text: &str) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tracks_wide_group_gaps_from_the_right() {
+        let cases = [
+            (1, vec![]),
+            (2, vec![]),
+            (3, vec![]),
+            (4, vec![]),
+            (5, vec![1]),
+            (6, vec![2]),
+            (7, vec![3]),
+            (8, vec![4]),
+            (9, vec![1, 5]),
+        ];
+
+        for (token_count, expected_gap_indexes) in cases {
+            let actual_gap_indexes = (1..token_count)
+                .filter(|index| is_wide_group_gap(*index, token_count))
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                actual_gap_indexes, expected_gap_indexes,
+                "token_count={token_count}"
+            );
+        }
+    }
+
+    #[test]
+    fn joins_visual_tokens_with_wide_group_gaps() {
+        let tokens = (0..5).map(|index| index.to_string()).collect::<Vec<_>>();
+
+        assert_eq!(join_visual_tokens(&tokens), "0   1 2 3 4");
+    }
+}

@@ -45,6 +45,10 @@ mod tests {
             Ok(0x1234_1234_1234_1234)
         );
         assert_eq!(
+            parse_unsigned("0X1234_1234_1234_1234"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
             parse_unsigned("1311693406324658740"),
             Ok(0x1234_1234_1234_1234)
         );
@@ -53,7 +57,15 @@ mod tests {
             Ok(0x1234_1234_1234_1234)
         );
         assert_eq!(
+            parse_unsigned("0O110640443202215011064"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
             parse_unsigned("0b0001001000110100000100100011010000010010001101000001001000110100"),
+            Ok(0x1234_1234_1234_1234)
+        );
+        assert_eq!(
+            parse_unsigned("0B0001001000110100000100100011010000010010001101000001001000110100"),
             Ok(0x1234_1234_1234_1234)
         );
     }
@@ -65,5 +77,15 @@ mod tests {
             Ok(u128::MAX)
         );
         assert!(parse_unsigned("0x1_0000_0000_0000_0000_0000_0000_0000_0000").is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_numbers() {
+        for input in ["", "_", "0x", "0o", "0b", "0xg", "0o8", "0b2", "12abc"] {
+            assert!(
+                parse_unsigned(input).is_err(),
+                "{input:?} should be invalid"
+            );
+        }
     }
 }

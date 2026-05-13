@@ -91,6 +91,7 @@ fn highlight_bit_digits(color_index: usize, input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::tests::strip_ansi;
 
     #[test]
     fn highlights_bit_digits() {
@@ -98,5 +99,51 @@ mod tests {
             highlight_bit_digits(0, "10_01"),
             "\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m_\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m"
         );
+    }
+
+    #[test]
+    fn renders_single_nibble_bit_area() {
+        let lines = render_bit_area("1010")
+            .into_iter()
+            .map(|line| strip_ansi(&line))
+            .collect::<Vec<_>>();
+
+        assert_eq!(lines[0], "├┬┬┤");
+        assert_eq!(lines[2], "1010");
+        assert_eq!(lines[4], "└──┤");
+        assert_eq!(lines[7], "   0");
+    }
+
+    #[test]
+    fn renders_bit_area_grouped_from_the_right() {
+        let lines = render_bit_area("00010010001101000101")
+            .into_iter()
+            .map(|line| strip_ansi(&line))
+            .collect::<Vec<_>>();
+
+        assert_eq!(lines[0], "├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
+        assert_eq!(lines[2], "0001 _ 0010_0011_0100_0101");
+        assert_eq!(lines[4], "└──┤   └──┤ └──┤ └──┤ └──┤");
+        assert_eq!(lines[7], "  16     12    8    4    0");
+    }
+
+    #[test]
+    fn renders_bit_area_positions_for_key_lengths() {
+        let cases = [
+            (1, "   0"),
+            (4, "  12    8    4    0"),
+            (8, "  28   24   20   16     12    8    4    0"),
+            (9, "  32     28   24   20   16     12    8    4    0"),
+        ];
+
+        for (nibble_count, expected_positions) in cases {
+            let bit_digits = "0".repeat(nibble_count * 4);
+            let lines = render_bit_area(&bit_digits)
+                .into_iter()
+                .map(|line| strip_ansi(&line))
+                .collect::<Vec<_>>();
+
+            assert_eq!(lines[7], expected_positions, "nibble_count={nibble_count}");
+        }
     }
 }

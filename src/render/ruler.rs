@@ -144,6 +144,27 @@ mod tests {
         }
     }
 
+    #[test]
+    fn renders_expected_ruler_labels_for_key_lengths() {
+        for digit_count in [1, 2, 3, 5, 9, 17, 32] {
+            let hex_digits = vec!['f'; digit_count];
+            let lines = render_ruler_with_left_labels(&hex_digits, "UNIT");
+            let rendered = strip_ansi(&lines.join("\n"));
+            let highest_label = format_power_of_two((digit_count - 1) * 4);
+
+            assert!(
+                rendered.contains(&highest_label),
+                "digit_count={digit_count}"
+            );
+            assert!(rendered.contains('1'), "digit_count={digit_count}");
+            assert_eq!(
+                lines.len(),
+                digit_count.div_ceil(2),
+                "digit_count={digit_count}"
+            );
+        }
+    }
+
     fn assert_ruler_connectors_align(lines: &[String], digit_count: usize) {
         for (row, line) in lines.iter().enumerate() {
             for (column, character) in line.chars().enumerate() {

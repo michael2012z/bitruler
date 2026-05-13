@@ -159,4 +159,22 @@ mod tests {
         assert_eq!(strip_ansi(&clip_line("\x1b[1m0\x1b[0m123", Some(3))), "012");
         assert_eq!(clip_line("abcdef", None), "abcdef");
     }
+
+    #[test]
+    fn trims_trailing_spaces_without_dropping_ansi_sequences() {
+        assert_eq!(trim_trailing_spaces("abc   "), "abc");
+        assert_eq!(
+            trim_trailing_spaces("\x1b[90mabc\x1b[0m   "),
+            "\x1b[90mabc\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn clips_lines_without_splitting_ansi_sequences() {
+        let clipped = clip_line("\x1b[31mab\x1b[0mcd", Some(3));
+
+        assert_eq!(strip_ansi(&clipped), "abc");
+        assert!(clipped.contains("\x1b[31m"));
+        assert!(clipped.contains("\x1b[0m"));
+    }
 }
