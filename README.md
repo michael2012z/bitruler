@@ -1,7 +1,7 @@
 # bitruler
 
 `bitruler` is a command-line utility for visualizing, decoding, and inspecting
-unsigned integers as bits, hexadecimal digits, and common numeric formats.
+data as bits, hexadecimal digits, and common numeric formats.
 
 It prints a compact bit ruler that makes it easier to see where each nibble and
 bit position sits inside a value.
@@ -16,22 +16,8 @@ bit position sits inside a value.
 
 ## Installation
 
-Build from source with Cargo:
-
 ```sh
-cargo build --release
-```
-
-The binary will be available at:
-
-```sh
-target/release/bitruler
-```
-
-For local development, run it directly with:
-
-```sh
-cargo run -- 0x1234
+cargo install bitruler
 ```
 
 ## Usage
@@ -39,23 +25,7 @@ cargo run -- 0x1234
 ```text
 bitruler <unsigned-number>
 bitruler --help
-bitruler --version
 ```
-
-Accepted input formats:
-
-```text
-Hexadecimal  0x1234
-Decimal      4660
-Octal        0o11064
-Binary       0b0001_0010_0011_0100
-```
-
-Notes:
-
-- Underscores are allowed as digit separators.
-- The maximum value is `340282366920938463463374607431768211455`.
-- The maximum hexadecimal value is `0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff`.
 
 ## Example
 
