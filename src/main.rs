@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Michael Zhao
+// SPDX-License-Identifier: MIT
+
 use std::{env, io, process};
 
 #[cfg(unix)]
