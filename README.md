@@ -22,14 +22,7 @@ cargo install bitruler
 
 ## Usage
 
-```text
-bitruler <unsigned-number>
-bitruler --help
-```
-
-## Example
-
-Command:
+Example command:
 
 ```sh
 bitruler 0x1234_5678_9abc
