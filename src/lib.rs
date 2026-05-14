@@ -17,6 +17,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     let mut args = args.into_iter();
     let program_name = args.next().unwrap_or_else(|| "bitruler".to_string());
     let mut no_color = false;
+    let mut text_only = false;
     let mut hex_digits = None;
     let mut input = None;
     let mut pending_hex_digits = false;
@@ -39,6 +40,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             return 0;
         } else if cli::is_no_color_flag(&argument) {
             no_color = true;
+        } else if cli::is_text_only_flag(&argument) {
+            text_only = true;
         } else if cli::is_hex_digits_flag(&argument) {
             pending_hex_digits = true;
         } else if input.replace(argument).is_some() {
@@ -68,7 +71,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             1
         }
         Ok(number) => {
-            output::print_output(number, output_options(no_color, hex_digits));
+            output::print_output(number, output_options(no_color, text_only, hex_digits));
             0
         }
         Err(error) => {
@@ -78,14 +81,27 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     }
 }
 
-fn output_options(no_color: bool, hex_digits: Option<usize>) -> output::OutputOptions {
+fn output_options(
+    no_color: bool,
+    text_only: bool,
+    hex_digits: Option<usize>,
+) -> output::OutputOptions {
     let color = if no_color {
         output::OutputColor::NoColor
     } else {
         output::OutputColor::Color
     };
+    let mode = if text_only {
+        output::OutputMode::TextOnly
+    } else {
+        output::OutputMode::VisualAndText
+    };
 
-    output::OutputOptions { color, hex_digits }
+    output::OutputOptions {
+        color,
+        mode,
+        hex_digits,
+    }
 }
 
 fn fits_hex_digits(number: u128, hex_digits: usize) -> bool {

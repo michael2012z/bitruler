@@ -8,6 +8,7 @@ use crate::{format::format_lines, render, terminal};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct OutputOptions {
     pub(super) color: OutputColor,
+    pub(super) mode: OutputMode,
     pub(super) hex_digits: Option<usize>,
 }
 
@@ -17,19 +18,14 @@ pub(super) enum OutputColor {
     NoColor,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum OutputMode {
+    VisualAndText,
+    TextOnly,
+}
+
 pub(super) fn print_output(number: u128, options: OutputOptions) {
-    let visual_lines = render::render_visual(
-        number,
-        render::RenderOptions {
-            color: render_color(options.color),
-            hex_digits: options.hex_digits,
-        },
-    );
-    let text_lines = format_lines(number, options.hex_digits);
-    let visual_line_count = visual_lines.len();
-    let mut lines = visual_lines;
-    lines.push(String::new());
-    lines.extend(text_lines);
+    let (lines, visual_line_count) = output_lines(number, options);
 
     let terminal_width = terminal::terminal_width();
     warn_if_output_exceeds_terminal_width(&lines, terminal_width);
@@ -41,6 +37,27 @@ pub(super) fn print_output(number: u128, options: OutputOptions) {
             println!("{line}");
         }
     }
+}
+
+fn output_lines(number: u128, options: OutputOptions) -> (Vec<String>, usize) {
+    let text_lines = format_lines(number, options.hex_digits);
+    let visual_lines = match options.mode {
+        OutputMode::VisualAndText => render::render_visual(
+            number,
+            render::RenderOptions {
+                color: render_color(options.color),
+                hex_digits: options.hex_digits,
+            },
+        ),
+        OutputMode::TextOnly => Vec::new(),
+    };
+    let visual_line_count = visual_lines.len();
+    let mut lines = visual_lines;
+    if !lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines.extend(text_lines);
+    (lines, visual_line_count)
 }
 
 fn render_color(color: OutputColor) -> render::RenderColor {
@@ -152,6 +169,46 @@ fn clip_line(line: &str, terminal_width: Option<usize>) -> String {
 mod tests {
     use super::*;
     use crate::test_support::strip_ansi;
+
+    #[test]
+    fn assembles_text_only_output_without_visual_lines() {
+        let (lines, visual_line_count) = output_lines(
+            0x1234,
+            OutputOptions {
+                color: OutputColor::NoColor,
+                mode: OutputMode::TextOnly,
+                hex_digits: Some(8),
+            },
+        );
+
+        assert_eq!(visual_line_count, 0);
+        assert_eq!(
+            lines,
+            vec![
+                "HEX: 0x0000_1234",
+                "DEC: 4660",
+                "OCT: 0o11064",
+                "BIN: 0b0000_0000_0000_0000_0001_0010_0011_0100",
+                "ASC: ...4",
+            ]
+        );
+    }
+
+    #[test]
+    fn assembles_visual_and_text_output_with_separator() {
+        let (lines, visual_line_count) = output_lines(
+            0x1234,
+            OutputOptions {
+                color: OutputColor::NoColor,
+                mode: OutputMode::VisualAndText,
+                hex_digits: None,
+            },
+        );
+
+        assert!(visual_line_count > 0);
+        assert_eq!(lines[visual_line_count], "");
+        assert_eq!(lines[visual_line_count + 1], "HEX: 0x1234");
+    }
 
     #[test]
     fn output_width_ignores_trailing_spaces() {
