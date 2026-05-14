@@ -21,6 +21,7 @@ pub(super) enum OutputColor {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum OutputMode {
     VisualAndText,
+    Compact,
     TextOnly,
 }
 
@@ -42,10 +43,11 @@ pub(super) fn print_output(number: u128, options: OutputOptions) {
 fn output_lines(number: u128, options: OutputOptions) -> (Vec<String>, usize) {
     let text_lines = format_lines(number, options.hex_digits);
     let visual_lines = match options.mode {
-        OutputMode::VisualAndText => render::render_visual(
+        OutputMode::VisualAndText | OutputMode::Compact => render::render_visual(
             number,
             render::RenderOptions {
                 color: render_color(options.color),
+                mode: render_mode(options.mode),
                 hex_digits: options.hex_digits,
             },
         ),
@@ -58,6 +60,14 @@ fn output_lines(number: u128, options: OutputOptions) -> (Vec<String>, usize) {
     }
     lines.extend(text_lines);
     (lines, visual_line_count)
+}
+
+fn render_mode(mode: OutputMode) -> render::RenderMode {
+    match mode {
+        OutputMode::VisualAndText => render::RenderMode::Full,
+        OutputMode::Compact => render::RenderMode::Compact,
+        OutputMode::TextOnly => render::RenderMode::Full,
+    }
 }
 
 fn render_color(color: OutputColor) -> render::RenderColor {
@@ -206,6 +216,27 @@ mod tests {
         );
 
         assert!(visual_line_count > 0);
+        assert_eq!(lines[visual_line_count], "");
+        assert_eq!(lines[visual_line_count + 1], "HEX: 0x1234");
+    }
+
+    #[test]
+    fn assembles_compact_output_with_bit_area_and_text() {
+        let (lines, visual_line_count) = output_lines(
+            0x1234,
+            OutputOptions {
+                color: OutputColor::NoColor,
+                mode: OutputMode::Compact,
+                hex_digits: None,
+            },
+        );
+        let rendered = lines.join("\n");
+
+        assert!(visual_line_count > 0);
+        assert!(!rendered.contains("U    "));
+        assert!(rendered.contains("E       1    2    3    4"));
+        assert!(rendered.contains("     ┌┬┬┤ ┌┬┬┤ ┌┬┬┤ ┌┬┬┤"));
+        assert!(rendered.contains("I    0001_0010_0011_0100"));
         assert_eq!(lines[visual_line_count], "");
         assert_eq!(lines[visual_line_count + 1], "HEX: 0x1234");
     }

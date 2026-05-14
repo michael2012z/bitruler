@@ -17,6 +17,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     let mut args = args.into_iter();
     let program_name = args.next().unwrap_or_else(|| "bitruler".to_string());
     let mut no_color = false;
+    let mut compact = false;
     let mut text_only = false;
     let mut hex_digits = None;
     let mut input = None;
@@ -40,6 +41,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             return 0;
         } else if cli::is_no_color_flag(&argument) {
             no_color = true;
+        } else if cli::is_compact_flag(&argument) {
+            compact = true;
         } else if cli::is_text_only_flag(&argument) {
             text_only = true;
         } else if cli::is_hex_digits_flag(&argument) {
@@ -71,7 +74,10 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             1
         }
         Ok(number) => {
-            output::print_output(number, output_options(no_color, text_only, hex_digits));
+            output::print_output(
+                number,
+                output_options(no_color, compact, text_only, hex_digits),
+            );
             0
         }
         Err(error) => {
@@ -83,6 +89,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
 
 fn output_options(
     no_color: bool,
+    compact: bool,
     text_only: bool,
     hex_digits: Option<usize>,
 ) -> output::OutputOptions {
@@ -93,6 +100,8 @@ fn output_options(
     };
     let mode = if text_only {
         output::OutputMode::TextOnly
+    } else if compact {
+        output::OutputMode::Compact
     } else {
         output::OutputMode::VisualAndText
     };

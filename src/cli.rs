@@ -19,6 +19,10 @@ pub(super) fn is_text_only_flag(input: &str) -> bool {
     input == "--text-only"
 }
 
+pub(super) fn is_compact_flag(input: &str) -> bool {
+    input == "--compact"
+}
+
 pub(super) fn is_hex_digits_flag(input: &str) -> bool {
     input == "--hex-digits"
 }
@@ -44,11 +48,9 @@ pub(super) fn print_version() {
 pub(super) fn print_help(program_name: &str) {
     println!(
         "bitruler - visualize, decode, and inspect binary data\n\n\
-Usage:\n  {program_name} [--no-color] [--text-only] [--hex-digits <N>] <unsigned-number>\n  {program_name} --help / -h\n  {program_name} --version / -v\n\n\
+Usage:\n  {program_name} [--no-color] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>\n  {program_name} --help / -h\n  {program_name} --version / -v\n\n\
 Arguments:\n  <unsigned-number>    Unsigned 128-bit integer to inspect\n\n\
-Options:\n  --no-color           Disable ANSI colors in the visual output\n\n\
-  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n\n\
-  --hex-digits <N>    Render with exactly N hex digits, from 1 to 32\n\n\
+Options:\n  --no-color           Disable ANSI colors in the visual output\n  --compact            Print Bit and Position areas plus text output\n  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32\n\n\
 Accepted input formats:\n  Hexadecimal          0x1234\n  Decimal              4660\n  Octal                0o11064\n  Binary               0b0001_0010_0011_0100\n\n\
 Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 340282366920938463463374607431768211455\n  - Maximum hexadecimal value is 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff\n\n\
 Examples:\n  {program_name} 4660\n  {program_name} 0x1234\n  {program_name} 0b0001_0010_0011_0100"
@@ -83,6 +85,12 @@ mod tests {
     fn recognizes_text_only_flag() {
         assert!(is_text_only_flag("--text-only"));
         assert!(!is_text_only_flag("--text"));
+    }
+
+    #[test]
+    fn recognizes_compact_flag() {
+        assert!(is_compact_flag("--compact"));
+        assert!(!is_compact_flag("--small"));
     }
 
     #[test]

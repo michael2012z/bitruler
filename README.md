@@ -3,15 +3,13 @@
 `bitruler` is a command-line utility for visualizing, decoding, and inspecting
 data as bits, hexadecimal digits, and common numeric formats.
 
-It prints a compact bit ruler that makes it easier to see where each nibble and
-bit position sits inside a value.
-
 ## Features
 
 - Accepts unsigned integers up to `u128`.
 - Supports hexadecimal, decimal, octal, and binary input.
 - Allows underscores as digit separators.
 - Shows a visual unit ruler, hexadecimal digit art, bit groups, and bit positions.
+- Supports compact output with inline hex digits, bit groups, and aligned positions.
 - Prints decoded `HEX`, `DEC`, `OCT`, `BIN`, and printable ASCII information.
 
 ## Installation
@@ -21,6 +19,17 @@ cargo install bitruler
 ```
 
 ## Usage
+
+```text
+Usage:
+  bitruler [--no-color] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>
+
+Options:
+  --no-color           Disable ANSI colors in the visual output
+  --compact            Print Hex, Bit, and Position areas plus text output
+  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines
+  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32
+```
 
 Example command:
 
@@ -51,14 +60,41 @@ I    0001_0010_0011_0100 _ 0101_0110_0111_1000 _ 1001_1010_1011_1100
 T
      └──┤ └──┤ └──┤ └──┤   └──┤ └──┤ └──┤ └──┤   └──┤ └──┤ └──┤ └──┤
 P       │    │    │    │      │    │    │    │      │    │    │    │
-O       │    │    │    │      │    │    │    │      │    │    │    │
-S      44   40   36   32     28   24   20   16     12    8    4    0
+O      44   40   36   32     28   24   20   16     12    8    4    0
+S
 
 HEX: 0x1234_5678_9abc
 DEC: 20015998343868
 OCT: 0o443212636115274
 BIN: 0b0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100
 ASC: .4Vx..
+```
+
+Compact mode keeps the hex, bit, and position areas without the unit ruler or
+large hexadecimal digit art:
+
+```sh
+bitruler --compact 0x1234
+```
+
+```text
+H
+E       1    2    3    4
+X
+     ┌┬┬┤ ┌┬┬┤ ┌┬┬┤ ┌┬┬┤
+B
+I    0001_0010_0011_0100
+T
+     └──┤ └──┤ └──┤ └──┤
+P       │    │    │    │
+O      12    8    4    0
+S
+
+HEX: 0x1234
+DEC: 4660
+OCT: 0o11064
+BIN: 0b0001_0010_0011_0100
+ASC: .4
 ```
 
 ## License

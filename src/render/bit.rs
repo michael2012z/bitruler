@@ -5,18 +5,28 @@
 
 use super::{layout, style, style::ColorMode};
 
-const TOP_CONNECTOR: &str = "├┬┬┤";
+pub(super) enum TopConnector {
+    Full,
+    Compact,
+}
+
+const FULL_TOP_CONNECTOR: &str = "├┬┬┤";
+const COMPACT_TOP_CONNECTOR: &str = "┌┬┬┤";
 const BOTTOM_CONNECTOR: &str = "└──┤";
 const BOTTOM_VERTICAL: &str = "   │";
 
-pub(super) fn render_bit_area(bit_digits: &str, color_mode: ColorMode) -> Vec<String> {
+pub(super) fn render_bit_area(
+    bit_digits: &str,
+    color_mode: ColorMode,
+    top_connector: TopConnector,
+) -> Vec<String> {
     let chunks = bit_digits
         .as_bytes()
         .chunks(4)
         .map(|chunk| std::str::from_utf8(chunk).expect("binary digits are valid UTF-8"))
         .collect::<Vec<_>>();
     let nibble_count = chunks.len();
-    let top_connectors = repeated_tokens(TOP_CONNECTOR, nibble_count);
+    let top_connectors = repeated_tokens(top_connector.as_str(), nibble_count);
     let bottom_connectors = repeated_tokens(BOTTOM_CONNECTOR, nibble_count);
     let bottom_verticals = repeated_tokens(BOTTOM_VERTICAL, nibble_count);
     let bit_labels = (0..nibble_count)
@@ -49,14 +59,19 @@ pub(super) fn render_bit_area(bit_digits: &str, color_mode: ColorMode) -> Vec<St
         format!(
             "{}{}",
             " ".repeat(layout::DATA_INDENT),
-            layout::join_visual_tokens(&bottom_verticals)
-        ),
-        format!(
-            "{}{}",
-            " ".repeat(layout::DATA_INDENT),
             layout::join_visual_tokens(&bit_labels)
         ),
+        String::new(),
     ]
+}
+
+impl TopConnector {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => FULL_TOP_CONNECTOR,
+            Self::Compact => COMPACT_TOP_CONNECTOR,
+        }
+    }
 }
 
 fn repeated_tokens(token: &str, count: usize) -> Vec<String> {
@@ -125,7 +140,7 @@ mod tests {
 
     #[test]
     fn renders_single_nibble_bit_area() {
-        let lines = render_bit_area("1010", ColorMode::Color)
+        let lines = render_bit_area("1010", ColorMode::Color, TopConnector::Full)
             .into_iter()
             .map(|line| strip_ansi(&line))
             .collect::<Vec<_>>();
@@ -133,12 +148,13 @@ mod tests {
         assert_eq!(lines[0], "├┬┬┤");
         assert_eq!(lines[2], "1010");
         assert_eq!(lines[4], "└──┤");
-        assert_eq!(lines[7], "   0");
+        assert_eq!(lines[6], "   0");
+        assert_eq!(lines[7], "");
     }
 
     #[test]
     fn renders_bit_area_grouped_from_the_right() {
-        let lines = render_bit_area("00010010001101000101", ColorMode::Color)
+        let lines = render_bit_area("00010010001101000101", ColorMode::Color, TopConnector::Full)
             .into_iter()
             .map(|line| strip_ansi(&line))
             .collect::<Vec<_>>();
@@ -146,7 +162,14 @@ mod tests {
         assert_eq!(lines[0], "├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
         assert_eq!(lines[2], "0001 _ 0010_0011_0100_0101");
         assert_eq!(lines[4], "└──┤   └──┤ └──┤ └──┤ └──┤");
-        assert_eq!(lines[7], "  16     12    8    4    0");
+        assert_eq!(lines[6], "  16     12    8    4    0");
+    }
+
+    #[test]
+    fn renders_compact_top_connectors() {
+        let lines = render_bit_area("10101111", ColorMode::NoColor, TopConnector::Compact);
+
+        assert_eq!(lines[0], "┌┬┬┤ ┌┬┬┤");
     }
 
     #[test]
@@ -160,12 +183,12 @@ mod tests {
 
         for (nibble_count, expected_positions) in cases {
             let bit_digits = "0".repeat(nibble_count * 4);
-            let lines = render_bit_area(&bit_digits, ColorMode::Color)
+            let lines = render_bit_area(&bit_digits, ColorMode::Color, TopConnector::Full)
                 .into_iter()
                 .map(|line| strip_ansi(&line))
                 .collect::<Vec<_>>();
 
-            assert_eq!(lines[7], expected_positions, "nibble_count={nibble_count}");
+            assert_eq!(lines[6], expected_positions, "nibble_count={nibble_count}");
         }
     }
 }
