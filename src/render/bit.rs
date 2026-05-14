@@ -3,13 +3,13 @@
 
 //! Bit area, dividers, and Position area rendering.
 
-use super::{layout, style};
+use super::{layout, style, style::ColorMode};
 
 const TOP_CONNECTOR: &str = "├┬┬┤";
 const BOTTOM_CONNECTOR: &str = "└──┤";
 const BOTTOM_VERTICAL: &str = "   │";
 
-pub(super) fn render_bit_area(bit_digits: &str) -> Vec<String> {
+pub(super) fn render_bit_area(bit_digits: &str, color_mode: ColorMode) -> Vec<String> {
     let chunks = bit_digits
         .as_bytes()
         .chunks(4)
@@ -33,7 +33,7 @@ pub(super) fn render_bit_area(bit_digits: &str) -> Vec<String> {
         format!(
             "{}{}",
             " ".repeat(layout::DATA_INDENT),
-            render_bit_chunks(&chunks)
+            render_bit_chunks(&chunks, color_mode)
         ),
         String::new(),
         format!(
@@ -63,7 +63,7 @@ fn repeated_tokens(token: &str, count: usize) -> Vec<String> {
     vec![token.to_string(); count]
 }
 
-fn render_bit_chunks(chunks: &[&str]) -> String {
+fn render_bit_chunks(chunks: &[&str], color_mode: ColorMode) -> String {
     chunks
         .iter()
         .enumerate()
@@ -75,12 +75,16 @@ fn render_bit_chunks(chunks: &[&str]) -> String {
                     output.push('_');
                 }
             }
-            output.push_str(&highlight_bit_digits(index, chunk));
+            output.push_str(&highlight_bit_digits(index, chunk, color_mode));
             output
         })
 }
 
-fn highlight_bit_digits(color_index: usize, input: &str) -> String {
+fn highlight_bit_digits(color_index: usize, input: &str, color_mode: ColorMode) -> String {
+    if color_mode == ColorMode::NoColor {
+        return input.to_string();
+    }
+
     let color = style::COLOR_CYCLE[color_index % style::COLOR_CYCLE.len()];
 
     input
@@ -106,14 +110,22 @@ mod tests {
     #[test]
     fn highlights_bit_digits() {
         assert_eq!(
-            highlight_bit_digits(0, "10_01"),
+            highlight_bit_digits(0, "10_01", ColorMode::Color),
             "\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m_\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m"
         );
     }
 
     #[test]
+    fn leaves_bit_digits_uncolored_in_no_color_mode() {
+        assert_eq!(
+            highlight_bit_digits(0, "10_01", ColorMode::NoColor),
+            "10_01"
+        );
+    }
+
+    #[test]
     fn renders_single_nibble_bit_area() {
-        let lines = render_bit_area("1010")
+        let lines = render_bit_area("1010", ColorMode::Color)
             .into_iter()
             .map(|line| strip_ansi(&line))
             .collect::<Vec<_>>();
@@ -126,7 +138,7 @@ mod tests {
 
     #[test]
     fn renders_bit_area_grouped_from_the_right() {
-        let lines = render_bit_area("00010010001101000101")
+        let lines = render_bit_area("00010010001101000101", ColorMode::Color)
             .into_iter()
             .map(|line| strip_ansi(&line))
             .collect::<Vec<_>>();
@@ -148,7 +160,7 @@ mod tests {
 
         for (nibble_count, expected_positions) in cases {
             let bit_digits = "0".repeat(nibble_count * 4);
-            let lines = render_bit_area(&bit_digits)
+            let lines = render_bit_area(&bit_digits, ColorMode::Color)
                 .into_iter()
                 .map(|line| strip_ansi(&line))
                 .collect::<Vec<_>>();

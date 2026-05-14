@@ -3,15 +3,15 @@
 
 //! Hex area digit glyph rendering.
 
-use super::{layout, style};
+use super::{layout, style, style::ColorMode};
 
-pub(super) fn render_hex_digits(hex_digits: &[char]) -> Vec<String> {
+pub(super) fn render_hex_digits(hex_digits: &[char], color_mode: ColorMode) -> Vec<String> {
     (0..5)
         .map(|row| {
             let tokens = hex_digits
                 .iter()
                 .enumerate()
-                .map(|(index, digit)| style::colorize(index, hex_pattern(*digit)[row]))
+                .map(|(index, digit)| style::colorize(index, hex_pattern(*digit)[row], color_mode))
                 .collect::<Vec<_>>();
             format!(
                 "{}{}",
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn renders_all_hex_digit_patterns() {
         let hex_digits = "0123456789abcdef".chars().collect::<Vec<_>>();
-        let rendered = render_hex_digits(&hex_digits)
+        let rendered = render_hex_digits(&hex_digits, ColorMode::Color)
             .into_iter()
             .map(|line| strip_ansi(&line))
             .collect::<Vec<_>>();

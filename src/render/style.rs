@@ -3,6 +3,12 @@
 
 //! ANSI color styling for data and grey visual scaffolding.
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ColorMode {
+    Color,
+    NoColor,
+}
+
 pub(super) const HIGHLIGHT_START: &str = "\x1b[1m";
 pub(super) const HIGHLIGHT_END: &str = "\x1b[0m";
 const GREY: &str = "\x1b[90m";
@@ -13,12 +19,20 @@ pub(super) const COLOR_CYCLE: [&str; 4] = [
     "\x1b[38;2;39;200;238m",
 ];
 
-pub(super) fn colorize(color_index: usize, input: &str) -> String {
+pub(super) fn colorize(color_index: usize, input: &str, color_mode: ColorMode) -> String {
+    if color_mode == ColorMode::NoColor {
+        return input.to_string();
+    }
+
     let color = COLOR_CYCLE[color_index % COLOR_CYCLE.len()];
     format!("{color}{input}{HIGHLIGHT_END}")
 }
 
-pub(super) fn grey_visual_scaffolding(line: &str) -> String {
+pub(super) fn grey_visual_scaffolding(line: &str, color_mode: ColorMode) -> String {
+    if color_mode == ColorMode::NoColor {
+        return line.to_string();
+    }
+
     let mut output = String::new();
     let mut chars = line.chars().peekable();
     let mut styled_content = false;
@@ -52,14 +66,27 @@ mod tests {
 
     #[test]
     fn colorizes_hex_digits() {
-        assert_eq!(colorize(2, "████"), "\x1b[38;2;212;155;255m████\x1b[0m");
+        assert_eq!(
+            colorize(2, "████", ColorMode::Color),
+            "\x1b[38;2;212;155;255m████\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn leaves_hex_digits_uncolored_in_no_color_mode() {
+        assert_eq!(colorize(2, "████", ColorMode::NoColor), "████");
     }
 
     #[test]
     fn greys_visual_scaffolding() {
         assert_eq!(
-            grey_visual_scaffolding("A \x1b[34mB\x1b[0m"),
+            grey_visual_scaffolding("A \x1b[34mB\x1b[0m", ColorMode::Color),
             "\x1b[90mA\x1b[0m \x1b[34mB\x1b[0m"
         );
+    }
+
+    #[test]
+    fn leaves_scaffolding_uncolored_in_no_color_mode() {
+        assert_eq!(grey_visual_scaffolding("A B", ColorMode::NoColor), "A B");
     }
 }

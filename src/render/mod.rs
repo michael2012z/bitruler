@@ -9,28 +9,44 @@ mod layout;
 mod ruler;
 mod style;
 
-pub(super) fn render_visual(number: u128) -> Vec<String> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RenderColor {
+    Color,
+    NoColor,
+}
+
+impl From<RenderColor> for style::ColorMode {
+    fn from(color: RenderColor) -> Self {
+        match color {
+            RenderColor::Color => Self::Color,
+            RenderColor::NoColor => Self::NoColor,
+        }
+    }
+}
+
+pub(super) fn render_visual(number: u128, color: RenderColor) -> Vec<String> {
     let hex_string = format!("{number:x}");
     let bit_width = hex_string.len() * 4;
     let bit_digits = format!("{number:0bit_width$b}");
     let hex_digits = hex_string.chars().collect::<Vec<_>>();
+    let color_mode = style::ColorMode::from(color);
 
     let mut lines = Vec::new();
     lines.push(String::new());
     lines.extend(ruler::render_ruler_with_left_labels(&hex_digits, "UNIT"));
     lines.push(String::new());
     lines.extend(layout::add_left_labels(
-        hex::render_hex_digits(&hex_digits),
+        hex::render_hex_digits(&hex_digits, color_mode),
         "HEX",
     ));
     lines.push(String::new());
     lines.extend(layout::add_left_labels(
-        bit::render_bit_area(&bit_digits),
+        bit::render_bit_area(&bit_digits, color_mode),
         " BIT POS",
     ));
     lines
         .into_iter()
-        .map(|line| style::grey_visual_scaffolding(&line))
+        .map(|line| style::grey_visual_scaffolding(&line, color_mode))
         .collect()
 }
 
@@ -42,7 +58,7 @@ mod tests {
 
     #[test]
     fn renders_visual_layout_for_hex_digits() {
-        let rendered = render_visual(0x1234).join("\n");
+        let rendered = render_visual(0x1234, RenderColor::Color).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -56,7 +72,7 @@ mod tests {
 
     #[test]
     fn renders_balanced_ruler_for_32_bit_values() {
-        let rendered = render_visual(0x1234_5678).join("\n");
+        let rendered = render_visual(0x1234_5678, RenderColor::Color).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -72,7 +88,7 @@ mod tests {
 
     #[test]
     fn renders_visual_groups_from_the_right() {
-        let rendered = render_visual(0x123_4567).join("\n");
+        let rendered = render_visual(0x123_4567, RenderColor::Color).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -96,7 +112,7 @@ mod tests {
 
     #[test]
     fn renders_split_ruler_for_64_bit_values() {
-        let rendered = render_visual(0x1234_1234_1234_1234).join("\n");
+        let rendered = render_visual(0x1234_1234_1234_1234, RenderColor::Color).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -112,7 +128,7 @@ mod tests {
 
     #[test]
     fn renders_128_bit_values() {
-        let rendered = render_visual(u128::MAX).join("\n");
+        let rendered = render_visual(u128::MAX, RenderColor::Color).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -135,7 +151,7 @@ mod tests {
             } else {
                 (1_u128 << (hex_length * 4)) - 1
             };
-            let rendered = render_visual(number).join("\n");
+            let rendered = render_visual(number, RenderColor::Color).join("\n");
             let stripped = strip_ansi(&rendered);
             let lines = stripped.lines().collect::<Vec<_>>();
             let position_line = lines
@@ -167,10 +183,19 @@ mod tests {
         ];
 
         for (number, expected_positions, expected_bits) in cases {
-            let rendered = strip_ansi(&render_visual(number).join("\n"));
+            let rendered = strip_ansi(&render_visual(number, RenderColor::Color).join("\n"));
 
             assert!(rendered.contains(expected_positions), "number={number:#x}");
             assert!(rendered.contains(expected_bits), "number={number:#x}");
         }
+    }
+
+    #[test]
+    fn renders_without_ansi_sequences_in_no_color_mode() {
+        let rendered = render_visual(0x1234, RenderColor::NoColor).join("\n");
+
+        assert!(!rendered.contains('\x1b'));
+        assert!(rendered.contains("H      █  ████ ████ █  █"));
+        assert!(rendered.contains("I    0001_0010_0011_0100"));
     }
 }

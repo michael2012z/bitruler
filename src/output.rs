@@ -3,10 +3,21 @@
 
 //! Terminal output assembly, clipping, and width warnings.
 
-use crate::{format::format_lines, render::render_visual, terminal};
+use crate::{format::format_lines, render, terminal};
 
-pub(super) fn print_output(number: u128) {
-    let visual_lines = render_visual(number);
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct OutputOptions {
+    pub(super) color: OutputColor,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum OutputColor {
+    Color,
+    NoColor,
+}
+
+pub(super) fn print_output(number: u128, options: OutputOptions) {
+    let visual_lines = render::render_visual(number, render_color(options.color));
     let text_lines = format_lines(number);
     let visual_line_count = visual_lines.len();
     let mut lines = visual_lines;
@@ -22,6 +33,13 @@ pub(super) fn print_output(number: u128) {
         } else {
             println!("{line}");
         }
+    }
+}
+
+fn render_color(color: OutputColor) -> render::RenderColor {
+    match color {
+        OutputColor::Color => render::RenderColor::Color,
+        OutputColor::NoColor => render::RenderColor::NoColor,
     }
 }
 
