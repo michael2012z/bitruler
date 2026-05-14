@@ -3,6 +3,8 @@
 
 //! Visual area rendering for Unit, Hex, Bit, and Position areas.
 
+use crate::format::{display_hex_digits, Endian};
+
 mod bit;
 mod hex;
 mod layout;
@@ -20,6 +22,7 @@ pub(super) struct RenderOptions {
     pub(super) color: RenderColor,
     pub(super) mode: RenderMode,
     pub(super) hex_digits: Option<usize>,
+    pub(super) endian: Endian,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -38,10 +41,17 @@ impl From<RenderColor> for style::ColorMode {
 }
 
 pub(super) fn render_visual(number: u128, options: RenderOptions) -> Vec<String> {
-    let hex_string = format_hex_digits(number, options.hex_digits);
-    let bit_width = hex_string.len() * 4;
-    let bit_digits = format!("{number:0bit_width$b}");
+    let hex_string = display_hex_digits(number, options.hex_digits, options.endian);
     let hex_digits = hex_string.chars().collect::<Vec<_>>();
+    let bit_digits = hex_digits
+        .iter()
+        .map(|digit| {
+            let value = digit
+                .to_digit(16)
+                .expect("display hex digits are hexadecimal");
+            format!("{value:04b}")
+        })
+        .collect::<String>();
     let color_mode = style::ColorMode::from(options.color);
 
     let mut lines = match options.mode {
@@ -100,13 +110,6 @@ fn render_compact_hex_digits(hex_digits: &[char], color_mode: style::ColorMode) 
     )
 }
 
-fn format_hex_digits(number: u128, hex_digits: Option<usize>) -> String {
-    match hex_digits {
-        Some(width) => format!("{number:0width$x}"),
-        None => format!("{number:x}"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,6 +121,7 @@ mod tests {
             color,
             mode: RenderMode::Full,
             hex_digits: None,
+            endian: Endian::Big,
         }
     }
 
@@ -126,6 +130,7 @@ mod tests {
             color: RenderColor::Color,
             mode: RenderMode::Full,
             hex_digits: Some(hex_digits),
+            endian: Endian::Big,
         }
     }
 
@@ -134,6 +139,16 @@ mod tests {
             color: RenderColor::NoColor,
             mode: RenderMode::Compact,
             hex_digits: None,
+            endian: Endian::Big,
+        }
+    }
+
+    fn little_endian_options() -> RenderOptions {
+        RenderOptions {
+            color: RenderColor::NoColor,
+            mode: RenderMode::Compact,
+            hex_digits: None,
+            endian: Endian::Little,
         }
     }
 
@@ -220,7 +235,7 @@ mod tests {
         assert!(strip_ansi(&rendered).contains("H    "));
         assert!(strip_ansi(&rendered).contains("O     124  120  116  112"));
         assert_eq!(
-            format_hex(u128::MAX, None),
+            format_hex(u128::MAX, None, Endian::Big),
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
         );
     }
@@ -298,6 +313,15 @@ mod tests {
         assert!(rendered.contains("E       1    2    3    4"));
         assert!(rendered.contains("     ┌┬┬┤ ┌┬┬┤ ┌┬┬┤ ┌┬┬┤"));
         assert!(rendered.contains("I    0001_0010_0011_0100"));
+        assert!(rendered.contains("O      12    8    4    0"));
+    }
+
+    #[test]
+    fn renders_little_endian_visual_bytes() {
+        let rendered = render_visual(0x1234, little_endian_options()).join("\n");
+
+        assert!(rendered.contains("E       3    4    1    2"));
+        assert!(rendered.contains("I    0011_0100_0001_0010"));
         assert!(rendered.contains("O      12    8    4    0"));
     }
 }

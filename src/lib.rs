@@ -10,6 +10,8 @@ mod parse;
 mod render;
 mod terminal;
 
+use format::Endian;
+
 #[cfg(test)]
 mod test_support;
 
@@ -17,6 +19,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     let mut args = args.into_iter();
     let program_name = args.next().unwrap_or_else(|| "bitruler".to_string());
     let mut no_color = false;
+    let mut little_endian = false;
     let mut compact = false;
     let mut text_only = false;
     let mut hex_digits = None;
@@ -41,6 +44,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             return 0;
         } else if cli::is_no_color_flag(&argument) {
             no_color = true;
+        } else if cli::is_little_endian_flag(&argument) {
+            little_endian = true;
         } else if cli::is_compact_flag(&argument) {
             compact = true;
         } else if cli::is_text_only_flag(&argument) {
@@ -76,7 +81,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
         Ok(number) => {
             output::print_output(
                 number,
-                output_options(no_color, compact, text_only, hex_digits),
+                output_options(no_color, little_endian, compact, text_only, hex_digits),
             );
             0
         }
@@ -89,6 +94,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
 
 fn output_options(
     no_color: bool,
+    little_endian: bool,
     compact: bool,
     text_only: bool,
     hex_digits: Option<usize>,
@@ -110,6 +116,11 @@ fn output_options(
         color,
         mode,
         hex_digits,
+        endian: if little_endian {
+            Endian::Little
+        } else {
+            Endian::Big
+        },
     }
 }
 

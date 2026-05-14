@@ -10,6 +10,7 @@ data as bits, hexadecimal digits, and common numeric formats.
 - Allows underscores as digit separators.
 - Shows a visual unit ruler, hexadecimal digit art, bit groups, and bit positions.
 - Supports compact output with inline hex digits, bit groups, and aligned positions.
+- Can display bytes in little-endian order for memory-oriented inspection.
 - Prints decoded `HEX`, `DEC`, `OCT`, `BIN`, and printable ASCII information.
 
 ## Installation
@@ -22,13 +23,14 @@ cargo install bitruler
 
 ```text
 Usage:
-  bitruler [--no-color] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>
+  bitruler [--no-color] [--little-endian] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>
 
 Options:
   --no-color           Disable ANSI colors in the visual output
   --compact            Print Hex, Bit, and Position areas plus text output
   --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines
   --hex-digits <N>     Render with exactly N hex digits, from 1 to 32
+  --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first
 ```
 
 Example command:

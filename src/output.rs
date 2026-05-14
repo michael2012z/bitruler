@@ -3,13 +3,17 @@
 
 //! Terminal output assembly, clipping, and width warnings.
 
-use crate::{format::format_lines, render, terminal};
+use crate::{
+    format::{format_lines, Endian},
+    render, terminal,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct OutputOptions {
     pub(super) color: OutputColor,
     pub(super) mode: OutputMode,
     pub(super) hex_digits: Option<usize>,
+    pub(super) endian: Endian,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -41,7 +45,7 @@ pub(super) fn print_output(number: u128, options: OutputOptions) {
 }
 
 fn output_lines(number: u128, options: OutputOptions) -> (Vec<String>, usize) {
-    let text_lines = format_lines(number, options.hex_digits);
+    let text_lines = format_lines(number, options.hex_digits, options.endian);
     let visual_lines = match options.mode {
         OutputMode::VisualAndText | OutputMode::Compact => render::render_visual(
             number,
@@ -49,6 +53,7 @@ fn output_lines(number: u128, options: OutputOptions) -> (Vec<String>, usize) {
                 color: render_color(options.color),
                 mode: render_mode(options.mode),
                 hex_digits: options.hex_digits,
+                endian: options.endian,
             },
         ),
         OutputMode::TextOnly => Vec::new(),
@@ -188,6 +193,7 @@ mod tests {
                 color: OutputColor::NoColor,
                 mode: OutputMode::TextOnly,
                 hex_digits: Some(8),
+                endian: Endian::Big,
             },
         );
 
@@ -212,6 +218,7 @@ mod tests {
                 color: OutputColor::NoColor,
                 mode: OutputMode::VisualAndText,
                 hex_digits: None,
+                endian: Endian::Big,
             },
         );
 
@@ -228,6 +235,7 @@ mod tests {
                 color: OutputColor::NoColor,
                 mode: OutputMode::Compact,
                 hex_digits: None,
+                endian: Endian::Big,
             },
         );
         let rendered = lines.join("\n");
@@ -239,6 +247,26 @@ mod tests {
         assert!(rendered.contains("I    0001_0010_0011_0100"));
         assert_eq!(lines[visual_line_count], "");
         assert_eq!(lines[visual_line_count + 1], "HEX: 0x1234");
+    }
+
+    #[test]
+    fn assembles_little_endian_output() {
+        let (lines, _visual_line_count) = output_lines(
+            0x1234,
+            OutputOptions {
+                color: OutputColor::NoColor,
+                mode: OutputMode::Compact,
+                hex_digits: None,
+                endian: Endian::Little,
+            },
+        );
+        let rendered = lines.join("\n");
+
+        assert!(rendered.contains("E       3    4    1    2"));
+        assert!(rendered.contains("I    0011_0100_0001_0010"));
+        assert!(rendered.contains("HEX: 0x3412"));
+        assert!(rendered.contains("DEC: 4660"));
+        assert!(rendered.contains("ASC: 4."));
     }
 
     #[test]
