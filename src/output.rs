@@ -8,6 +8,7 @@ use crate::{format::format_lines, render, terminal};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct OutputOptions {
     pub(super) color: OutputColor,
+    pub(super) hex_digits: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -17,8 +18,14 @@ pub(super) enum OutputColor {
 }
 
 pub(super) fn print_output(number: u128, options: OutputOptions) {
-    let visual_lines = render::render_visual(number, render_color(options.color));
-    let text_lines = format_lines(number);
+    let visual_lines = render::render_visual(
+        number,
+        render::RenderOptions {
+            color: render_color(options.color),
+            hex_digits: options.hex_digits,
+        },
+    );
+    let text_lines = format_lines(number, options.hex_digits);
     let visual_line_count = visual_lines.len();
     let mut lines = visual_lines;
     lines.push(String::new());

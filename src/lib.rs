@@ -17,10 +17,21 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     let mut args = args.into_iter();
     let program_name = args.next().unwrap_or_else(|| "bitruler".to_string());
     let mut no_color = false;
+    let mut hex_digits = None;
     let mut input = None;
+    let mut pending_hex_digits = false;
 
     for argument in args {
-        if cli::is_help_flag(&argument) {
+        if pending_hex_digits {
+            match cli::parse_hex_digits(&argument) {
+                Ok(value) => hex_digits = Some(value),
+                Err(error) => {
+                    eprintln!("Error: {error}");
+                    return 2;
+                }
+            }
+            pending_hex_digits = false;
+        } else if cli::is_help_flag(&argument) {
             cli::print_help(&program_name);
             return 0;
         } else if cli::is_version_flag(&argument) {
@@ -28,11 +39,18 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             return 0;
         } else if cli::is_no_color_flag(&argument) {
             no_color = true;
+        } else if cli::is_hex_digits_flag(&argument) {
+            pending_hex_digits = true;
         } else if input.replace(argument).is_some() {
             eprintln!("Usage: {program_name} <unsigned-number>");
             eprintln!("Try '{program_name} --help' for more information.");
             return 2;
         }
+    }
+
+    if pending_hex_digits {
+        eprintln!("Error: --hex-digits requires a value");
+        return 2;
     }
 
     let Some(input) = input else {
@@ -42,8 +60,15 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     };
 
     match parse::parse_unsigned(&input) {
+        Ok(number) if hex_digits.is_some_and(|width| !fits_hex_digits(number, width)) => {
+            eprintln!(
+                "Error: value does not fit in {} hex digits",
+                hex_digits.expect("checked as Some")
+            );
+            1
+        }
         Ok(number) => {
-            output::print_output(number, output_options(no_color));
+            output::print_output(number, output_options(no_color, hex_digits));
             0
         }
         Err(error) => {
@@ -53,12 +78,24 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     }
 }
 
-fn output_options(no_color: bool) -> output::OutputOptions {
+fn output_options(no_color: bool, hex_digits: Option<usize>) -> output::OutputOptions {
     let color = if no_color {
         output::OutputColor::NoColor
     } else {
         output::OutputColor::Color
     };
 
-    output::OutputOptions { color }
+    output::OutputOptions { color, hex_digits }
+}
+
+fn fits_hex_digits(number: u128, hex_digits: usize) -> bool {
+    hex_digit_count(number) <= hex_digits
+}
+
+fn hex_digit_count(number: u128) -> usize {
+    if number == 0 {
+        1
+    } else {
+        (128 - number.leading_zeros() as usize).div_ceil(4)
+    }
 }

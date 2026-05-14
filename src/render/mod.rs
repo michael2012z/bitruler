@@ -15,6 +15,12 @@ pub(super) enum RenderColor {
     NoColor,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct RenderOptions {
+    pub(super) color: RenderColor,
+    pub(super) hex_digits: Option<usize>,
+}
+
 impl From<RenderColor> for style::ColorMode {
     fn from(color: RenderColor) -> Self {
         match color {
@@ -24,12 +30,12 @@ impl From<RenderColor> for style::ColorMode {
     }
 }
 
-pub(super) fn render_visual(number: u128, color: RenderColor) -> Vec<String> {
-    let hex_string = format!("{number:x}");
+pub(super) fn render_visual(number: u128, options: RenderOptions) -> Vec<String> {
+    let hex_string = format_hex_digits(number, options.hex_digits);
     let bit_width = hex_string.len() * 4;
     let bit_digits = format!("{number:0bit_width$b}");
     let hex_digits = hex_string.chars().collect::<Vec<_>>();
-    let color_mode = style::ColorMode::from(color);
+    let color_mode = style::ColorMode::from(options.color);
 
     let mut lines = Vec::new();
     lines.push(String::new());
@@ -50,15 +56,36 @@ pub(super) fn render_visual(number: u128, color: RenderColor) -> Vec<String> {
         .collect()
 }
 
+fn format_hex_digits(number: u128, hex_digits: Option<usize>) -> String {
+    match hex_digits {
+        Some(width) => format!("{number:0width$x}"),
+        None => format!("{number:x}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::format::format_hex;
     use crate::test_support::strip_ansi;
 
+    fn color_options(color: RenderColor) -> RenderOptions {
+        RenderOptions {
+            color,
+            hex_digits: None,
+        }
+    }
+
+    fn fixed_width_options(hex_digits: usize) -> RenderOptions {
+        RenderOptions {
+            color: RenderColor::Color,
+            hex_digits: Some(hex_digits),
+        }
+    }
+
     #[test]
     fn renders_visual_layout_for_hex_digits() {
-        let rendered = render_visual(0x1234, RenderColor::Color).join("\n");
+        let rendered = render_visual(0x1234, color_options(RenderColor::Color)).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -72,7 +99,7 @@ mod tests {
 
     #[test]
     fn renders_balanced_ruler_for_32_bit_values() {
-        let rendered = render_visual(0x1234_5678, RenderColor::Color).join("\n");
+        let rendered = render_visual(0x1234_5678, color_options(RenderColor::Color)).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -88,7 +115,7 @@ mod tests {
 
     #[test]
     fn renders_visual_groups_from_the_right() {
-        let rendered = render_visual(0x123_4567, RenderColor::Color).join("\n");
+        let rendered = render_visual(0x123_4567, color_options(RenderColor::Color)).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -112,7 +139,8 @@ mod tests {
 
     #[test]
     fn renders_split_ruler_for_64_bit_values() {
-        let rendered = render_visual(0x1234_1234_1234_1234, RenderColor::Color).join("\n");
+        let rendered =
+            render_visual(0x1234_1234_1234_1234, color_options(RenderColor::Color)).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -128,7 +156,7 @@ mod tests {
 
     #[test]
     fn renders_128_bit_values() {
-        let rendered = render_visual(u128::MAX, RenderColor::Color).join("\n");
+        let rendered = render_visual(u128::MAX, color_options(RenderColor::Color)).join("\n");
 
         let lines = rendered.lines().collect::<Vec<_>>();
 
@@ -138,7 +166,7 @@ mod tests {
         assert!(strip_ansi(&rendered).contains("H    "));
         assert!(strip_ansi(&rendered).contains("S     124  120  116  112"));
         assert_eq!(
-            format_hex(u128::MAX),
+            format_hex(u128::MAX, None),
             "0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff"
         );
     }
@@ -151,7 +179,7 @@ mod tests {
             } else {
                 (1_u128 << (hex_length * 4)) - 1
             };
-            let rendered = render_visual(number, RenderColor::Color).join("\n");
+            let rendered = render_visual(number, color_options(RenderColor::Color)).join("\n");
             let stripped = strip_ansi(&rendered);
             let lines = stripped.lines().collect::<Vec<_>>();
             let position_line = lines
@@ -183,7 +211,8 @@ mod tests {
         ];
 
         for (number, expected_positions, expected_bits) in cases {
-            let rendered = strip_ansi(&render_visual(number, RenderColor::Color).join("\n"));
+            let rendered =
+                strip_ansi(&render_visual(number, color_options(RenderColor::Color)).join("\n"));
 
             assert!(rendered.contains(expected_positions), "number={number:#x}");
             assert!(rendered.contains(expected_bits), "number={number:#x}");
@@ -192,10 +221,18 @@ mod tests {
 
     #[test]
     fn renders_without_ansi_sequences_in_no_color_mode() {
-        let rendered = render_visual(0x1234, RenderColor::NoColor).join("\n");
+        let rendered = render_visual(0x1234, color_options(RenderColor::NoColor)).join("\n");
 
         assert!(!rendered.contains('\x1b'));
         assert!(rendered.contains("H      █  ████ ████ █  █"));
         assert!(rendered.contains("I    0001_0010_0011_0100"));
+    }
+
+    #[test]
+    fn renders_fixed_hex_digit_width() {
+        let rendered = strip_ansi(&render_visual(0x1234, fixed_width_options(8)).join("\n"));
+
+        assert!(rendered.contains("I    0000_0000_0000_0000 _ 0001_0010_0011_0100"));
+        assert!(rendered.contains("S      28   24   20   16     12    8    4    0"));
     }
 }
