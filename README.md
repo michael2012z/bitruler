@@ -7,6 +7,7 @@ data as bits, hexadecimal digits, and common numeric formats.
 
 - Accepts unsigned integers up to `u128`.
 - Supports hexadecimal, decimal, octal, and binary input.
+- Supports binary size suffixes such as `40K`, `3M`, and `25G`.
 - Allows underscores as digit separators.
 - Shows a visual unit ruler, hexadecimal digit art, bit groups, and bit positions.
 - Supports compact output with inline hex digits, bit groups, and aligned positions.
@@ -32,6 +33,10 @@ Options:
   --hex-digits <N>     Render with exactly N hex digits, from 1 to 32
   --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first
 ```
+
+Accepted inputs include decimal, hexadecimal (`0x`), octal (`0o`), binary (`0b`),
+and optional case-insensitive `K`, `M`, or `G` suffixes using powers of 1024.
+For example, `40K` is parsed as `40960`.
 
 Example command:
 
