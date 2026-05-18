@@ -14,6 +14,7 @@ mod style;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum RenderColor {
     Color,
+    Ansi256([u8; 4]),
     NoColor,
 }
 
@@ -34,7 +35,8 @@ pub(super) enum RenderMode {
 impl From<RenderColor> for style::ColorMode {
     fn from(color: RenderColor) -> Self {
         match color {
-            RenderColor::Color => Self::Color,
+            RenderColor::Color => Self::Color(style::ColorPalette::Default),
+            RenderColor::Ansi256(indexes) => Self::Color(style::ColorPalette::Ansi256(indexes)),
             RenderColor::NoColor => Self::NoColor,
         }
     }

@@ -5,27 +5,44 @@
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ColorMode {
-    Color,
+    Color(ColorPalette),
     NoColor,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ColorPalette {
+    Default,
+    Ansi256([u8; 4]),
 }
 
 pub(super) const HIGHLIGHT_START: &str = "\x1b[1m";
 pub(super) const HIGHLIGHT_END: &str = "\x1b[0m";
 const GREY: &str = "\x1b[90m";
-pub(super) const COLOR_CYCLE: [&str; 4] = [
-    "\x1b[38;2;110;158;248m",
-    "\x1b[38;2;180;244;164m",
-    "\x1b[38;2;212;155;255m",
-    "\x1b[38;2;39;200;238m",
-];
+pub(super) const DEFAULT_COLOR_INDEXES: [u8; 4] = [1, 2, 3, 4];
 
 pub(super) fn colorize(color_index: usize, input: &str, color_mode: ColorMode) -> String {
     if color_mode == ColorMode::NoColor {
         return input.to_string();
     }
 
-    let color = COLOR_CYCLE[color_index % COLOR_CYCLE.len()];
+    let color = color_escape(color_index, color_mode).expect("color mode is enabled");
     format!("{color}{input}{HIGHLIGHT_END}")
+}
+
+pub(super) fn color_escape(color_index: usize, color_mode: ColorMode) -> Option<String> {
+    match color_mode {
+        ColorMode::Color(ColorPalette::Default) => {
+            Some(ansi_256_color_escape(color_index, DEFAULT_COLOR_INDEXES))
+        }
+        ColorMode::Color(ColorPalette::Ansi256(indexes)) => {
+            Some(ansi_256_color_escape(color_index, indexes))
+        }
+        ColorMode::NoColor => None,
+    }
+}
+
+fn ansi_256_color_escape(color_index: usize, indexes: [u8; 4]) -> String {
+    format!("\x1b[38;5;{}m", indexes[color_index % indexes.len()])
 }
 
 pub(super) fn grey_visual_scaffolding(line: &str, color_mode: ColorMode) -> String {
@@ -67,8 +84,20 @@ mod tests {
     #[test]
     fn colorizes_hex_digits() {
         assert_eq!(
-            colorize(2, "████", ColorMode::Color),
-            "\x1b[38;2;212;155;255m████\x1b[0m"
+            colorize(2, "████", ColorMode::Color(ColorPalette::Default)),
+            "\x1b[38;5;3m████\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn colorizes_with_ansi_256_indexes() {
+        assert_eq!(
+            colorize(
+                5,
+                "████",
+                ColorMode::Color(ColorPalette::Ansi256([1, 2, 3, 4]))
+            ),
+            "\x1b[38;5;2m████\x1b[0m"
         );
     }
 
@@ -80,7 +109,10 @@ mod tests {
     #[test]
     fn greys_visual_scaffolding() {
         assert_eq!(
-            grey_visual_scaffolding("A \x1b[34mB\x1b[0m", ColorMode::Color),
+            grey_visual_scaffolding(
+                "A \x1b[34mB\x1b[0m",
+                ColorMode::Color(ColorPalette::Default)
+            ),
             "\x1b[90mA\x1b[0m \x1b[34mB\x1b[0m"
         );
     }

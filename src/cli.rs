@@ -31,6 +31,10 @@ pub(super) fn is_hex_digits_flag(input: &str) -> bool {
     input == "--hex-digits"
 }
 
+pub(super) fn is_colors_flag(input: &str) -> bool {
+    input == "--colors"
+}
+
 pub(super) fn parse_hex_digits(input: &str) -> Result<usize, String> {
     let hex_digits = input
         .parse::<usize>()
@@ -45,6 +49,25 @@ pub(super) fn parse_hex_digits(input: &str) -> Result<usize, String> {
     }
 }
 
+pub(super) fn parse_colors(input: &str) -> Result<[u8; 4], String> {
+    let parts = input.split(',').collect::<Vec<_>>();
+
+    if parts.len() != 4 {
+        return Err(format!(
+            "--colors requires exactly 4 comma-separated indexes, got {input}"
+        ));
+    }
+
+    let mut colors = [0; 4];
+    for (index, part) in parts.iter().enumerate() {
+        colors[index] = part
+            .parse::<u8>()
+            .map_err(|_| format!("invalid --colors index: {part}"))?;
+    }
+
+    Ok(colors)
+}
+
 pub(super) fn print_version() {
     println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 }
@@ -56,12 +79,12 @@ pub(super) fn print_help(program_name: &str) {
 fn help_text(program_name: &str) -> String {
     format!(
         "bitruler - visualize, decode, and inspect binary data\n\n\
-Usage:\n  {program_name} [--no-color] [--little-endian] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>\n  {program_name} --help / -h\n  {program_name} --version / -v\n\n\
+Usage:\n  {program_name} [--no-color] [--colors <A,B,C,D>] [--little-endian] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>\n  {program_name} --help / -h\n  {program_name} --version / -v\n\n\
 Arguments:\n  <unsigned-number>    Unsigned 128-bit integer to inspect\n\n\
-Options:\n  --no-color           Disable ANSI colors in the visual output\n  --compact            Print Hex, Bit, and Position areas plus text output\n  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32\n  --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first\n\n\
+Options:\n  --no-color           Disable ANSI colors in the visual output\n  --colors <A,B,C,D>   Use four ANSI 256-color indexes for visual digits\n  --compact            Print Hex, Bit, and Position areas plus text output\n  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32\n  --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first\n\n\
 Accepted input formats:\n  Hexadecimal          0x1234\n  Decimal              4660\n  Octal                0o11064\n  Binary               0b0001_0010_0011_0100\n  Binary size suffix   40K, 3M, 25G\n\n\
-Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 340282366920938463463374607431768211455\n  - Maximum hexadecimal value is 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff\n  - Size suffixes are case-insensitive powers of 1024: K, M, G\n\n\
-Examples:\n  {program_name} 4660\n  {program_name} 0x1234\n  {program_name} 0b0001_0010_0011_0100\n  {program_name} 40K"
+Notes:\n  - Underscores are allowed as digit separators\n  - Maximum value is 340282366920938463463374607431768211455\n  - Maximum hexadecimal value is 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff\n  - Size suffixes are case-insensitive powers of 1024: K, M, G\n  - Colors must be comma-separated: --colors 1,2,3,4\n\n\
+Examples:\n  {program_name} 4660\n  {program_name} 0x1234\n  {program_name} 0b0001_0010_0011_0100\n  {program_name} 40K\n  {program_name} --colors 196,46,201,51 0x1234"
     )
 }
 
@@ -79,7 +102,7 @@ mod tests {
     #[test]
     fn formats_help_options_block() {
         assert!(help_text("bitruler").contains(
-            "Options:\n  --no-color           Disable ANSI colors in the visual output\n  --compact            Print Hex, Bit, and Position areas plus text output\n  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32\n  --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first\n\n"
+            "Options:\n  --no-color           Disable ANSI colors in the visual output\n  --colors <A,B,C,D>   Use four ANSI 256-color indexes for visual digits\n  --compact            Print Hex, Bit, and Position areas plus text output\n  --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines\n  --hex-digits <N>     Render with exactly N hex digits, from 1 to 32\n  --little-endian      Display HEX, BIN, ASC, and visual bytes least-significant first\n\n"
         ));
     }
 
@@ -88,6 +111,7 @@ mod tests {
         assert!(help_text("bitruler").contains("Binary size suffix   40K, 3M, 25G"));
         assert!(help_text("bitruler")
             .contains("Size suffixes are case-insensitive powers of 1024: K, M, G"));
+        assert!(help_text("bitruler").contains("Colors must be comma-separated: --colors 1,2,3,4"));
     }
 
     #[test]
@@ -128,11 +152,25 @@ mod tests {
     }
 
     #[test]
+    fn recognizes_colors_flag() {
+        assert!(is_colors_flag("--colors"));
+        assert!(!is_colors_flag("--color"));
+    }
+
+    #[test]
     fn parses_hex_digits_option() {
         assert_eq!(parse_hex_digits("1"), Ok(1));
         assert_eq!(parse_hex_digits("32"), Ok(32));
         assert!(parse_hex_digits("0").is_err());
         assert!(parse_hex_digits("33").is_err());
         assert!(parse_hex_digits("abc").is_err());
+    }
+
+    #[test]
+    fn parses_colors_option() {
+        assert_eq!(parse_colors("196,46,201,51"), Ok([196, 46, 201, 51]));
+        assert!(parse_colors("1,2,3").is_err());
+        assert!(parse_colors("1,2,3,256").is_err());
+        assert!(parse_colors("1,2,3,x").is_err());
     }
 }

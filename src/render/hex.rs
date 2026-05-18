@@ -65,10 +65,11 @@ mod tests {
     #[test]
     fn renders_all_hex_digit_patterns() {
         let hex_digits = "0123456789abcdef".chars().collect::<Vec<_>>();
-        let rendered = render_hex_digits(&hex_digits, ColorMode::Color)
-            .into_iter()
-            .map(|line| strip_ansi(&line))
-            .collect::<Vec<_>>();
+        let rendered =
+            render_hex_digits(&hex_digits, ColorMode::Color(style::ColorPalette::Default))
+                .into_iter()
+                .map(|line| strip_ansi(&line))
+                .collect::<Vec<_>>();
 
         assert_eq!(rendered.len(), 5);
         assert_eq!(

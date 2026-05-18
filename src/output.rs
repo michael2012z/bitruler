@@ -19,6 +19,7 @@ pub(super) struct OutputOptions {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum OutputColor {
     Color,
+    Ansi256([u8; 4]),
     NoColor,
 }
 
@@ -78,6 +79,7 @@ fn render_mode(mode: OutputMode) -> render::RenderMode {
 fn render_color(color: OutputColor) -> render::RenderColor {
     match color {
         OutputColor::Color => render::RenderColor::Color,
+        OutputColor::Ansi256(indexes) => render::RenderColor::Ansi256(indexes),
         OutputColor::NoColor => render::RenderColor::NoColor,
     }
 }

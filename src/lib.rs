@@ -23,11 +23,22 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
     let mut compact = false;
     let mut text_only = false;
     let mut hex_digits = None;
+    let mut color_indexes = None;
     let mut input = None;
     let mut pending_hex_digits = false;
+    let mut pending_colors = false;
 
     for argument in args {
-        if pending_hex_digits {
+        if pending_colors {
+            match cli::parse_colors(&argument) {
+                Ok(value) => color_indexes = Some(value),
+                Err(error) => {
+                    eprintln!("Error: {error}");
+                    return 2;
+                }
+            }
+            pending_colors = false;
+        } else if pending_hex_digits {
             match cli::parse_hex_digits(&argument) {
                 Ok(value) => hex_digits = Some(value),
                 Err(error) => {
@@ -52,6 +63,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
             text_only = true;
         } else if cli::is_hex_digits_flag(&argument) {
             pending_hex_digits = true;
+        } else if cli::is_colors_flag(&argument) {
+            pending_colors = true;
         } else if input.replace(argument).is_some() {
             eprintln!("Usage: {program_name} <unsigned-number>");
             eprintln!("Try '{program_name} --help' for more information.");
@@ -61,6 +74,10 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
 
     if pending_hex_digits {
         eprintln!("Error: --hex-digits requires a value");
+        return 2;
+    }
+    if pending_colors {
+        eprintln!("Error: --colors requires a value");
         return 2;
     }
 
@@ -81,7 +98,14 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
         Ok(number) => {
             output::print_output(
                 number,
-                output_options(no_color, little_endian, compact, text_only, hex_digits),
+                output_options(
+                    no_color,
+                    little_endian,
+                    compact,
+                    text_only,
+                    hex_digits,
+                    color_indexes,
+                ),
             );
             0
         }
@@ -98,9 +122,12 @@ fn output_options(
     compact: bool,
     text_only: bool,
     hex_digits: Option<usize>,
+    color_indexes: Option<[u8; 4]>,
 ) -> output::OutputOptions {
     let color = if no_color {
         output::OutputColor::NoColor
+    } else if let Some(indexes) = color_indexes {
+        output::OutputColor::Ansi256(indexes)
     } else {
         output::OutputColor::Color
     };

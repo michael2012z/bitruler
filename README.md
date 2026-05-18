@@ -12,6 +12,7 @@ data as bits, hexadecimal digits, and common numeric formats.
 - Shows a visual unit ruler, hexadecimal digit art, bit groups, and bit positions.
 - Supports compact output with inline hex digits, bit groups, and aligned positions.
 - Can display bytes in little-endian order for memory-oriented inspection.
+- Can customize visual colors with four ANSI 256-color indexes.
 - Prints decoded `HEX`, `DEC`, `OCT`, `BIN`, and printable ASCII information.
 
 ## Installation
@@ -24,10 +25,11 @@ cargo install bitruler
 
 ```text
 Usage:
-  bitruler [--no-color] [--little-endian] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>
+  bitruler [--no-color] [--colors <A,B,C,D>] [--little-endian] [--compact | --text-only] [--hex-digits <N>] <unsigned-number>
 
 Options:
   --no-color           Disable ANSI colors in the visual output
+  --colors <A,B,C,D>   Use four ANSI 256-color indexes for visual digits
   --compact            Print Hex, Bit, and Position areas plus text output
   --text-only          Print only HEX, DEC, OCT, BIN, and ASC lines
   --hex-digits <N>     Render with exactly N hex digits, from 1 to 32
@@ -42,6 +44,13 @@ Example command:
 
 ```sh
 bitruler 0x1234_5678_9abc
+```
+
+Custom color indexes can be supplied as four comma-separated ANSI 256-color
+indexes:
+
+```sh
+bitruler --colors 196,46,201,51 0x1234
 ```
 
 Output:

@@ -100,7 +100,7 @@ fn highlight_bit_digits(color_index: usize, input: &str, color_mode: ColorMode) 
         return input.to_string();
     }
 
-    let color = style::COLOR_CYCLE[color_index % style::COLOR_CYCLE.len()];
+    let color = style::color_escape(color_index, color_mode).expect("color mode is enabled");
 
     input
         .chars()
@@ -125,8 +125,8 @@ mod tests {
     #[test]
     fn highlights_bit_digits() {
         assert_eq!(
-            highlight_bit_digits(0, "10_01", ColorMode::Color),
-            "\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m_\x1b[1m\x1b[38;2;110;158;248m0\x1b[0m\x1b[1m\x1b[38;2;110;158;248m1\x1b[0m"
+            highlight_bit_digits(0, "10_01", ColorMode::Color(style::ColorPalette::Default)),
+            "\x1b[1m\x1b[38;5;1m1\x1b[0m\x1b[1m\x1b[38;5;1m0\x1b[0m_\x1b[1m\x1b[38;5;1m0\x1b[0m\x1b[1m\x1b[38;5;1m1\x1b[0m"
         );
     }
 
@@ -140,10 +140,14 @@ mod tests {
 
     #[test]
     fn renders_single_nibble_bit_area() {
-        let lines = render_bit_area("1010", ColorMode::Color, TopConnector::Full)
-            .into_iter()
-            .map(|line| strip_ansi(&line))
-            .collect::<Vec<_>>();
+        let lines = render_bit_area(
+            "1010",
+            ColorMode::Color(style::ColorPalette::Default),
+            TopConnector::Full,
+        )
+        .into_iter()
+        .map(|line| strip_ansi(&line))
+        .collect::<Vec<_>>();
 
         assert_eq!(lines[0], "├┬┬┤");
         assert_eq!(lines[2], "1010");
@@ -154,10 +158,14 @@ mod tests {
 
     #[test]
     fn renders_bit_area_grouped_from_the_right() {
-        let lines = render_bit_area("00010010001101000101", ColorMode::Color, TopConnector::Full)
-            .into_iter()
-            .map(|line| strip_ansi(&line))
-            .collect::<Vec<_>>();
+        let lines = render_bit_area(
+            "00010010001101000101",
+            ColorMode::Color(style::ColorPalette::Default),
+            TopConnector::Full,
+        )
+        .into_iter()
+        .map(|line| strip_ansi(&line))
+        .collect::<Vec<_>>();
 
         assert_eq!(lines[0], "├┬┬┤   ├┬┬┤ ├┬┬┤ ├┬┬┤ ├┬┬┤");
         assert_eq!(lines[2], "0001 _ 0010_0011_0100_0101");
@@ -183,10 +191,14 @@ mod tests {
 
         for (nibble_count, expected_positions) in cases {
             let bit_digits = "0".repeat(nibble_count * 4);
-            let lines = render_bit_area(&bit_digits, ColorMode::Color, TopConnector::Full)
-                .into_iter()
-                .map(|line| strip_ansi(&line))
-                .collect::<Vec<_>>();
+            let lines = render_bit_area(
+                &bit_digits,
+                ColorMode::Color(style::ColorPalette::Default),
+                TopConnector::Full,
+            )
+            .into_iter()
+            .map(|line| strip_ansi(&line))
+            .collect::<Vec<_>>();
 
             assert_eq!(lines[6], expected_positions, "nibble_count={nibble_count}");
         }
