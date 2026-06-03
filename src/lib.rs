@@ -86,6 +86,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> i32 {
         eprintln!("Try '{program_name} --help' for more information.");
         return 2;
     };
+    let hex_digits = hex_digits.or_else(|| inferred_hex_digit_width(&input));
 
     match parse::parse_unsigned(&input) {
         Ok(number) if hex_digits.is_some_and(|width| !fits_hex_digits(number, width)) => {
@@ -160,5 +161,45 @@ fn hex_digit_count(number: u128) -> usize {
         1
     } else {
         (128 - number.leading_zeros() as usize).div_ceil(4)
+    }
+}
+
+fn inferred_hex_digit_width(input: &str) -> Option<usize> {
+    let normalized = input.replace('_', "");
+    if let Some(digits) = normalized
+        .strip_prefix("0x")
+        .or_else(|| normalized.strip_prefix("0X"))
+    {
+        return (!digits.is_empty()
+            && digits.len() <= 32
+            && digits.chars().all(|digit| digit.is_ascii_hexdigit()))
+        .then_some(digits.len());
+    }
+
+    let digits = normalized
+        .strip_prefix("0b")
+        .or_else(|| normalized.strip_prefix("0B"))?;
+
+    (!digits.is_empty()
+        && digits.len() <= 128
+        && digits.chars().all(|digit| matches!(digit, '0' | '1')))
+    .then_some(digits.len().div_ceil(4))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn infers_hex_digit_width_from_input() {
+        assert_eq!(inferred_hex_digit_width("0x001234"), Some(6));
+        assert_eq!(inferred_hex_digit_width("0X001_234"), Some(6));
+        assert_eq!(inferred_hex_digit_width("0x10K"), None);
+        assert_eq!(inferred_hex_digit_width("0x0000_0000_0000_0000_0000_0000_0000_0000"), Some(32));
+        assert_eq!(inferred_hex_digit_width("0x0000_0000_0000_0000_0000_0000_0000_0000_0"), None);
+        assert_eq!(inferred_hex_digit_width("0b000000101"), Some(3));
+        assert_eq!(inferred_hex_digit_width("0B0000_0010_1"), Some(3));
+        assert_eq!(inferred_hex_digit_width("0b10M"), None);
+        assert_eq!(inferred_hex_digit_width("4660"), None);
     }
 }
