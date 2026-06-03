@@ -6,12 +6,20 @@
 use super::{layout, style, style::ColorMode};
 
 pub(super) fn render_hex_digits(hex_digits: &[char], color_mode: ColorMode) -> Vec<String> {
+    let token_count = hex_digits.len();
+
     (0..5)
         .map(|row| {
             let tokens = hex_digits
                 .iter()
                 .enumerate()
-                .map(|(index, digit)| style::colorize(index, hex_pattern(*digit)[row], color_mode))
+                .map(|(index, digit)| {
+                    style::colorize(
+                        style::color_index_from_right(index, token_count),
+                        hex_pattern(*digit)[row],
+                        color_mode,
+                    )
+                })
                 .collect::<Vec<_>>();
             format!(
                 "{}{}",

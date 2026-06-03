@@ -29,6 +29,12 @@ pub(super) fn colorize(color_index: usize, input: &str, color_mode: ColorMode) -
     format!("{color}{input}{HIGHLIGHT_END}")
 }
 
+pub(super) fn color_index_from_right(index: usize, token_count: usize) -> usize {
+    const COLOR_COUNT: usize = DEFAULT_COLOR_INDEXES.len();
+
+    index + (COLOR_COUNT - token_count % COLOR_COUNT)
+}
+
 pub(super) fn color_escape(color_index: usize, color_mode: ColorMode) -> Option<String> {
     match color_mode {
         ColorMode::Color(ColorPalette::Default) => {
@@ -104,6 +110,15 @@ mod tests {
     #[test]
     fn leaves_hex_digits_uncolored_in_no_color_mode() {
         assert_eq!(colorize(2, "████", ColorMode::NoColor), "████");
+    }
+
+    #[test]
+    fn calculates_color_indexes_from_the_right() {
+        let indexes = (0..5)
+            .map(|index| color_index_from_right(index, 5))
+            .collect::<Vec<_>>();
+
+        assert_eq!(indexes, vec![3, 4, 5, 6, 7]);
     }
 
     #[test]

@@ -79,6 +79,8 @@ fn repeated_tokens(token: &str, count: usize) -> Vec<String> {
 }
 
 fn render_bit_chunks(chunks: &[&str], color_mode: ColorMode) -> String {
+    let token_count = chunks.len();
+
     chunks
         .iter()
         .enumerate()
@@ -90,7 +92,11 @@ fn render_bit_chunks(chunks: &[&str], color_mode: ColorMode) -> String {
                     output.push('_');
                 }
             }
-            output.push_str(&highlight_bit_digits(index, chunk, color_mode));
+            output.push_str(&highlight_bit_digits(
+                style::color_index_from_right(index, token_count),
+                chunk,
+                color_mode,
+            ));
             output
         })
 }

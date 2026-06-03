@@ -99,10 +99,17 @@ fn render_compact_prefix(hex_digits: &[char], color_mode: style::ColorMode) -> V
 }
 
 fn render_compact_hex_digits(hex_digits: &[char], color_mode: style::ColorMode) -> String {
+    let token_count = hex_digits.len();
     let tokens = hex_digits
         .iter()
         .enumerate()
-        .map(|(index, digit)| style::colorize(index, &format!("{:>4}", digit), color_mode))
+        .map(|(index, digit)| {
+            style::colorize(
+                style::color_index_from_right(index, token_count),
+                &format!("{:>4}", digit),
+                color_mode,
+            )
+        })
         .collect::<Vec<_>>();
 
     format!(
